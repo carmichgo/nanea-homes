@@ -12,7 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const navigation = [
-  { name: "Dashboard", href: "/", icon: Home },
+  { name: "Dashboard", href: "/dashboard", icon: Home },
   { name: "Properties", href: "/properties", icon: Building2 },
   { name: "Financials", href: "/financials", icon: DollarSign },
   { name: "Contractors", href: "/contractors", icon: Users },
@@ -31,9 +31,7 @@ export function Sidebar() {
       <nav className="flex-1 space-y-1 px-3 py-4">
         {navigation.map((item) => {
           const isActive =
-            item.href === "/"
-              ? pathname === "/"
-              : pathname.startsWith(item.href);
+            pathname === item.href || pathname.startsWith(item.href + "/");
 
           return (
             <Link
