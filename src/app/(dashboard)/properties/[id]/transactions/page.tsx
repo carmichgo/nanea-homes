@@ -1,5 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Transaction } from "@/types";
+
+export const dynamic = "force-dynamic";
 import { TransactionsView } from "./transactions-view";
 
 interface Props {

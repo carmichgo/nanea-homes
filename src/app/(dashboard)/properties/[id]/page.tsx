@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
+
+export const dynamic = "force-dynamic";
 import { Property, Transaction, MaintenanceRecord } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

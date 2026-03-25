@@ -1,5 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Transaction, Property } from "@/types";
+
+export const dynamic = "force-dynamic";
+
 import { PortfolioFinancialsView } from "./portfolio-financials-view";
 
 export default async function PortfolioFinancialsPage() {
