@@ -78,15 +78,10 @@ export default function ContractorsPage() {
 
   const fetchContractors = useCallback(async () => {
     setLoading(true);
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
 
     const { data } = await supabase
       .from("contractors")
       .select("*")
-      .eq("user_id", user.id)
       .order("name");
     setContractors(data ?? []);
     setLoading(false);
@@ -119,19 +114,13 @@ export default function ContractorsPage() {
     });
   };
 
-  const buildPayload = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return null;
-
+  const buildPayload = () => {
     const serviceAreasArray = form.serviceAreas
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
 
     return {
-      user_id: user.id,
       name: form.name,
       company: form.company || null,
       email: form.email || null,
@@ -144,8 +133,7 @@ export default function ContractorsPage() {
   };
 
   const handleAdd = async () => {
-    const payload = await buildPayload();
-    if (!payload) return;
+    const payload = buildPayload();
 
     const { error } = await supabase
       .from("contractors")
@@ -160,13 +148,11 @@ export default function ContractorsPage() {
 
   const handleEdit = async () => {
     if (!editContractor) return;
-    const payload = await buildPayload();
-    if (!payload) return;
+    const payload = buildPayload();
 
-    const { user_id, ...updateData } = payload;
     const { error } = await supabase
       .from("contractors")
-      .update(updateData)
+      .update(payload)
       .eq("id", editContractor.id);
 
     if (!error) {

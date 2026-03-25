@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { Property } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,16 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Building2, Plus, ArrowRight } from "lucide-react";
 
 export default async function PropertiesPage() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const supabase = createAdminClient();
 
   const { data: properties } = await supabase
     .from("properties")
     .select("*")
-    .eq("user_id", user?.id)
     .eq("is_active", true)
     .order("created_at", { ascending: false });
 

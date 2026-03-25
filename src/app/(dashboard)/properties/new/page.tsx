@@ -51,18 +51,7 @@ export default function NewPropertyPage() {
     setLoading(true);
     setError(null);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      setError("You must be logged in to create a property.");
-      setLoading(false);
-      return;
-    }
-
     const { error: insertError } = await supabase.from("properties").insert({
-      user_id: user.id,
       name: form.name,
       address_line1: form.address_line1,
       address_line2: form.address_line2 || null,

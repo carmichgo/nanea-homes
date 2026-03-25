@@ -1,17 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { plaidClient } from '@/lib/plaid/client';
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const { property_id } = await request.json();
 
     const adminClient = createAdminClient();
@@ -50,7 +42,6 @@ export async function POST(request: NextRequest) {
         description: txn.name,
         date: txn.date,
         is_manual: false,
-        user_id: user.id,
       };
     });
 

@@ -99,13 +99,8 @@ export default function DocumentsPage() {
     setUploading(true);
 
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
       const timestamp = Date.now();
-      const filePath = `${user.id}/${propertyId}/${timestamp}-${file.name}`;
+      const filePath = `${propertyId}/${timestamp}-${file.name}`;
 
       const { error: storageError } = await supabase.storage
         .from("property-documents")
@@ -115,7 +110,6 @@ export default function DocumentsPage() {
 
       const { error: insertError } = await supabase.from("documents").insert({
         property_id: propertyId,
-        user_id: user.id,
         name: name || file.name,
         category,
         file_path: filePath,

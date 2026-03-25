@@ -1,15 +1,13 @@
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 
 export default async function HomePage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const cookieStore = await cookies();
+  const session = cookieStore.get("nanea_session");
 
-  if (user) {
+  if (session?.value === "authenticated") {
     redirect("/dashboard");
   }
 
@@ -30,9 +28,6 @@ export default async function HomePage() {
         <div className="mt-10 flex items-center justify-center gap-4">
           <Button asChild size="lg">
             <Link href="/login">Login</Link>
-          </Button>
-          <Button asChild variant="outline" size="lg">
-            <Link href="/signup">Sign Up</Link>
           </Button>
         </div>
       </div>

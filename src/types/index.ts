@@ -6,7 +6,6 @@ export type DocumentCategory = "insurance" | "deed" | "lease" | "inspection" | "
 
 export interface Property {
   id: string;
-  user_id: string;
   name: string;
   address_line1: string;
   address_line2?: string;
@@ -28,7 +27,6 @@ export interface Property {
 export interface Transaction {
   id: string;
   property_id: string;
-  user_id: string;
   plaid_transaction_id?: string;
   type: TransactionType;
   status: TransactionStatus;
@@ -46,7 +44,6 @@ export interface Transaction {
 export interface PlaidConnection {
   id: string;
   property_id: string;
-  user_id: string;
   institution_name?: string;
   account_name?: string;
   account_mask?: string;
@@ -57,7 +54,6 @@ export interface PlaidConnection {
 export interface Document {
   id: string;
   property_id: string;
-  user_id: string;
   category: DocumentCategory;
   name: string;
   file_path: string;
@@ -71,7 +67,6 @@ export interface Document {
 export interface MaintenanceRecord {
   id: string;
   property_id: string;
-  user_id: string;
   contractor_id?: string;
   title: string;
   description?: string;
@@ -88,7 +83,6 @@ export interface MaintenanceRecord {
 
 export interface Contractor {
   id: string;
-  user_id: string;
   name: string;
   company?: string;
   email?: string;

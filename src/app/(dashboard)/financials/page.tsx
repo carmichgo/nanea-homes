@@ -1,9 +1,9 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { Transaction, Property } from "@/types";
 import { PortfolioFinancialsView } from "./portfolio-financials-view";
 
 export default async function PortfolioFinancialsPage() {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const [{ data: properties }, { data: transactions }] = await Promise.all([
     supabase

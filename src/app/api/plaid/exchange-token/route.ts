@@ -1,17 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { plaidClient } from '@/lib/plaid/client';
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const {
       public_token,
       property_id,
@@ -29,7 +21,6 @@ export async function POST(request: NextRequest) {
       .from('plaid_connections')
       .insert({
         property_id,
-        user_id: user.id,
         plaid_item_id: item_id,
         plaid_access_token: access_token,
         institution_name,

@@ -127,14 +127,8 @@ export default function MaintenancePage() {
   };
 
   const handleCreate = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
-
     const { error } = await supabase.from("maintenance_records").insert({
       property_id: propertyId,
-      user_id: user.id,
       title,
       description: description || null,
       priority,

@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const adminClient = createAdminClient();
 
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
@@ -22,9 +17,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    const filePath = `${user.id}/${property_id}/${Date.now()}-${file.name}`;
+    const filePath = `${property_id}/${Date.now()}-${file.name}`;
 
-    const { error: uploadError } = await supabase.storage
+    const { error: uploadError } = await adminClient.storage
       .from('property-documents')
       .upload(filePath, file);
 
@@ -36,11 +31,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { data: document, error: insertError } = await supabase
+    const { data: document, error: insertError } = await adminClient
       .from('documents')
       .insert({
         property_id,
-        user_id: user.id,
         name,
         category,
         file_path: filePath,
@@ -55,7 +49,7 @@ export async function POST(request: NextRequest) {
     if (insertError) {
       console.error('Error inserting document record:', insertError);
       // Attempt to clean up uploaded file
-      await supabase.storage.from('property-documents').remove([filePath]);
+      await adminClient.storage.from('property-documents').remove([filePath]);
       return NextResponse.json(
         { error: 'Failed to create document record' },
         { status: 500 }

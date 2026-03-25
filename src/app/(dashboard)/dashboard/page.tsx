@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { Property, Transaction } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,17 +12,12 @@ import {
 } from "lucide-react";
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const supabase = createAdminClient();
 
   // Fetch all properties
   const { data: properties } = await supabase
     .from("properties")
     .select("*")
-    .eq("user_id", user?.id)
     .eq("is_active", true)
     .order("name");
 
@@ -41,7 +36,6 @@ export default async function DashboardPage() {
   const { data: monthTransactions } = await supabase
     .from("transactions")
     .select("*")
-    .eq("user_id", user?.id)
     .gte("date", startOfMonth)
     .lte("date", endOfMonth);
 
@@ -62,7 +56,6 @@ export default async function DashboardPage() {
   const { count: openMaintenanceCount } = await supabase
     .from("maintenance_records")
     .select("*", { count: "exact", head: true })
-    .eq("user_id", user?.id)
     .in("status", ["open", "in_progress"]);
 
   // Per-property transaction summaries

@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { Transaction, Property } from "@/types";
 import { PropertyFinancialsView } from "./property-financials-view";
 
@@ -8,7 +8,7 @@ interface Props {
 
 export default async function PropertyFinancialsPage({ params }: Props) {
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const [{ data: property }, { data: transactions }] = await Promise.all([
     supabase

@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { Transaction } from "@/types";
 import { TransactionsView } from "./transactions-view";
 
@@ -8,7 +8,7 @@ interface Props {
 
 export default async function TransactionsPage({ params }: Props) {
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data: property } = await supabase
     .from("properties")
