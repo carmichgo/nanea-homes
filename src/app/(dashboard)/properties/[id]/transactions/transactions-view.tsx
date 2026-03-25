@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { Transaction, TransactionType } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -57,7 +56,6 @@ export function TransactionsView({
   initialTransactions,
 }: TransactionsViewProps) {
   const router = useRouter();
-  const supabase = createClient();
 
   // Filter state
   const [dateFrom, setDateFrom] = useState("");
@@ -97,25 +95,34 @@ export function TransactionsView({
     if (!formAmount || !formDate) return;
     setSubmitting(true);
 
-    const { error } = await supabase.from("transactions").insert({
-      property_id: propertyId,
-      type: formType,
-      amount: parseFloat(formAmount),
-      category: formCategory,
-      description: formDescription,
-      date: formDate,
-      status: "posted",
-      is_manual: true,
-    });
+    try {
+      const res = await fetch("/api/transactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          property_id: propertyId,
+          type: formType,
+          amount: parseFloat(formAmount),
+          category: formCategory,
+          description: formDescription,
+          date: formDate,
+        }),
+      });
 
-    setSubmitting(false);
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to add transaction");
+      }
 
-    if (!error) {
       setDialogOpen(false);
       setFormAmount("");
       setFormDescription("");
       setFormDate(new Date().toISOString().split("T")[0]);
       router.refresh();
+    } catch (err) {
+      console.error("Failed to add transaction:", err);
+    } finally {
+      setSubmitting(false);
     }
   }
 

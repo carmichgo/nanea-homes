@@ -23,7 +23,8 @@ CREATE TYPE document_category AS ENUM ('insurance', 'deed', 'lease', 'inspection
 CREATE TABLE properties (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
-  address TEXT,
+  address_line1 TEXT,
+  address_line2 TEXT,
   city TEXT,
   state TEXT,
   zip TEXT,

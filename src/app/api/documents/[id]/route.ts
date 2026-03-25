@@ -1,6 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const adminClient = createAdminClient();
+    const { id } = await params;
+
+    const { data: document, error: fetchError } = await adminClient
+      .from('documents')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !document) {
+      return NextResponse.json(
+        { error: 'Document not found' },
+        { status: 404 }
+      );
+    }
+
+    const { data, error } = await adminClient.storage
+      .from('property-documents')
+      .createSignedUrl(document.file_path, 60);
+
+    if (error || !data?.signedUrl) {
+      return NextResponse.json(
+        { error: 'Failed to generate download URL' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ url: data.signedUrl });
+  } catch (error) {
+    console.error('Error generating download URL:', error);
+    return NextResponse.json(
+      { error: 'Failed to generate download URL' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

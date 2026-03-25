@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { db } from "@/lib/api";
 import { Document, DocumentCategory } from "@/types";
 import { formatDate } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -56,7 +56,6 @@ function isExpiringSoon(expiryDate?: string): boolean {
 export default function DocumentsPage() {
   const params = useParams();
   const propertyId = params.id as string;
-  const supabase = createClient();
 
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,14 +72,18 @@ export default function DocumentsPage() {
 
   const fetchDocuments = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("documents")
-      .select("*")
-      .eq("property_id", propertyId)
-      .order("created_at", { ascending: false });
-    setDocuments(data ?? []);
-    setLoading(false);
-  }, [propertyId, supabase]);
+    try {
+      const data = await db.query("documents", {
+        filters: { property_id: propertyId },
+        order: "-created_at",
+      });
+      setDocuments(data ?? []);
+    } catch (err) {
+      console.error("Failed to fetch documents:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [propertyId]);
 
   useEffect(() => {
     fetchDocuments();
@@ -99,27 +102,23 @@ export default function DocumentsPage() {
     setUploading(true);
 
     try {
-      const timestamp = Date.now();
-      const filePath = `${propertyId}/${timestamp}-${file.name}`;
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("property_id", propertyId);
+      formData.append("name", name || file.name);
+      formData.append("category", category);
+      if (notes) formData.append("notes", notes);
+      if (expiryDate) formData.append("expiry_date", expiryDate);
 
-      const { error: storageError } = await supabase.storage
-        .from("property-documents")
-        .upload(filePath, file);
-
-      if (storageError) throw storageError;
-
-      const { error: insertError } = await supabase.from("documents").insert({
-        property_id: propertyId,
-        name: name || file.name,
-        category,
-        file_path: filePath,
-        file_size: file.size,
-        mime_type: file.type,
-        notes: notes || null,
-        expiry_date: expiryDate || null,
+      const res = await fetch("/api/documents/upload", {
+        method: "POST",
+        body: formData,
       });
 
-      if (insertError) throw insertError;
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Upload failed");
+      }
 
       resetForm();
       setUploadOpen(false);
@@ -132,28 +131,34 @@ export default function DocumentsPage() {
   };
 
   const handleDownload = async (doc: Document) => {
-    const { data, error } = await supabase.storage
-      .from("property-documents")
-      .createSignedUrl(doc.file_path, 60);
-
-    if (error || !data?.signedUrl) {
-      console.error("Failed to get download URL:", error);
-      return;
+    try {
+      const res = await fetch(`/api/documents/${doc.id}`);
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to get download URL");
+      }
+      const data = await res.json();
+      window.open(data.url, "_blank");
+    } catch (err) {
+      console.error("Failed to get download URL:", err);
     }
-
-    window.open(data.signedUrl, "_blank");
   };
 
   const handleDelete = async () => {
     if (!deleteId) return;
-    const doc = documents.find((d) => d.id === deleteId);
-    if (!doc) return;
-
-    await supabase.storage.from("property-documents").remove([doc.file_path]);
-    await supabase.from("documents").delete().eq("id", deleteId);
-
-    setDeleteId(null);
-    fetchDocuments();
+    try {
+      const res = await fetch(`/api/documents/${deleteId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to delete document");
+      }
+      setDeleteId(null);
+      fetchDocuments();
+    } catch (err) {
+      console.error("Failed to delete document:", err);
+    }
   };
 
   if (loading) {

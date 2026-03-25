@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { db } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +19,6 @@ import { Building2 } from "lucide-react";
 
 export default function NewPropertyPage() {
   const router = useRouter();
-  const supabase = createClient();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,29 +50,28 @@ export default function NewPropertyPage() {
     setLoading(true);
     setError(null);
 
-    const { error: insertError } = await supabase.from("properties").insert({
-      name: form.name,
-      address_line1: form.address_line1,
-      address_line2: form.address_line2 || null,
-      city: form.city,
-      state: form.state,
-      zip: form.zip,
-      property_type: form.property_type,
-      units: Number(form.units),
-      purchase_price: form.purchase_price ? Number(form.purchase_price) : null,
-      purchase_date: form.purchase_date || null,
-      current_value: form.current_value ? Number(form.current_value) : null,
-      monthly_rent: form.monthly_rent ? Number(form.monthly_rent) : null,
-      notes: form.notes || null,
-    });
-
-    if (insertError) {
-      setError(insertError.message);
+    try {
+      await db.insert("properties", {
+        name: form.name,
+        address_line1: form.address_line1,
+        address_line2: form.address_line2 || null,
+        city: form.city,
+        state: form.state,
+        zip: form.zip,
+        property_type: form.property_type,
+        units: Number(form.units),
+        purchase_price: form.purchase_price ? Number(form.purchase_price) : null,
+        purchase_date: form.purchase_date || null,
+        current_value: form.current_value ? Number(form.current_value) : null,
+        monthly_rent: form.monthly_rent ? Number(form.monthly_rent) : null,
+        notes: form.notes || null,
+      });
+      router.push("/properties");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to create property");
       setLoading(false);
       return;
     }
-
-    router.push("/properties");
   }
 
   return (

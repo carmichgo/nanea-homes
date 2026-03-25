@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { db } from "@/lib/api";
 import {
   MaintenanceRecord,
   MaintenanceStatus,
@@ -69,7 +69,6 @@ function statusLabel(s: string) {
 export default function MaintenancePage() {
   const params = useParams();
   const propertyId = params.id as string;
-  const supabase = createClient();
 
   const [records, setRecords] = useState<MaintenanceRecord[]>([]);
   const [contractors, setContractors] = useState<Contractor[]>([]);
@@ -94,23 +93,31 @@ export default function MaintenancePage() {
 
   const fetchRecords = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("maintenance_records")
-      .select("*, contractor:contractors(*)")
-      .eq("property_id", propertyId)
-      .order("date_reported", { ascending: false });
-    setRecords(data ?? []);
-    setLoading(false);
-  }, [propertyId, supabase]);
+    try {
+      const data = await db.query("maintenance_records", {
+        select: "*, contractor:contractors(*)",
+        filters: { property_id: propertyId },
+        order: "-date_reported",
+      });
+      setRecords(data ?? []);
+    } catch (err) {
+      console.error("Failed to fetch maintenance records:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [propertyId]);
 
   const fetchContractors = useCallback(async () => {
-    const { data } = await supabase
-      .from("contractors")
-      .select("*")
-      .eq("is_active", true)
-      .order("name");
-    setContractors(data ?? []);
-  }, [supabase]);
+    try {
+      const data = await db.query("contractors", {
+        filters: { is_active: true },
+        order: "name",
+      });
+      setContractors(data ?? []);
+    } catch (err) {
+      console.error("Failed to fetch contractors:", err);
+    }
+  }, []);
 
   useEffect(() => {
     fetchRecords();
@@ -127,22 +134,23 @@ export default function MaintenancePage() {
   };
 
   const handleCreate = async () => {
-    const { error } = await supabase.from("maintenance_records").insert({
-      property_id: propertyId,
-      title,
-      description: description || null,
-      priority,
-      contractor_id: contractorId || null,
-      cost: cost ? parseFloat(cost) : null,
-      notes: formNotes || null,
-      status: "open" as MaintenanceStatus,
-      date_reported: new Date().toISOString().split("T")[0],
-    });
-
-    if (!error) {
+    try {
+      await db.insert("maintenance_records", {
+        property_id: propertyId,
+        title,
+        description: description || null,
+        priority,
+        contractor_id: contractorId || null,
+        cost: cost ? parseFloat(cost) : null,
+        notes: formNotes || null,
+        status: "open" as MaintenanceStatus,
+        date_reported: new Date().toISOString().split("T")[0],
+      });
       resetCreateForm();
       setCreateOpen(false);
       fetchRecords();
+    } catch (err) {
+      console.error("Failed to create maintenance record:", err);
     }
   };
 
@@ -156,20 +164,17 @@ export default function MaintenancePage() {
 
   const handleUpdate = async () => {
     if (!editRecord) return;
-
-    const { error } = await supabase
-      .from("maintenance_records")
-      .update({
+    try {
+      await db.update("maintenance_records", editRecord.id, {
         status: editStatus,
         cost: editCost ? parseFloat(editCost) : null,
         date_completed: editDateCompleted || null,
         notes: editNotes || null,
-      })
-      .eq("id", editRecord.id);
-
-    if (!error) {
+      });
       setEditRecord(null);
       fetchRecords();
+    } catch (err) {
+      console.error("Failed to update maintenance record:", err);
     }
   };
 

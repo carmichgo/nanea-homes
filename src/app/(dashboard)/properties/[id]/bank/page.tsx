@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { db } from "@/lib/api";
 import { PlaidConnection } from "@/types";
 import { formatDate } from "@/lib/utils";
 import { usePlaidLink } from "react-plaid-link";
@@ -80,8 +80,6 @@ function PlaidLinkButton({
 export default function BankPage() {
   const params = useParams();
   const propertyId = params.id as string;
-  const supabase = createClient();
-
   const [connection, setConnection] = useState<PlaidConnection | null>(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
@@ -90,14 +88,19 @@ export default function BankPage() {
 
   const fetchConnection = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("plaid_connections")
-      .select("*")
-      .eq("property_id", propertyId)
-      .maybeSingle();
-    setConnection(data);
-    setLoading(false);
-  }, [propertyId, supabase]);
+    try {
+      const data = await db.query("plaid_connections", {
+        filters: { property_id: propertyId },
+        single: true,
+      });
+      setConnection(data);
+    } catch {
+      // No connection found or query failed
+      setConnection(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [propertyId]);
 
   useEffect(() => {
     fetchConnection();
@@ -130,10 +133,7 @@ export default function BankPage() {
     if (!connection) return;
     setDisconnecting(true);
     try {
-      await supabase
-        .from("plaid_connections")
-        .delete()
-        .eq("id", connection.id);
+      await db.remove("plaid_connections", connection.id);
       setConnection(null);
       setSyncResult(null);
     } catch (err) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { db } from "@/lib/api";
 import { Contractor } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import {
@@ -68,8 +68,6 @@ const emptyForm: ContractorFormState = {
 };
 
 export default function ContractorsPage() {
-  const supabase = createClient();
-
   const [contractors, setContractors] = useState<Contractor[]>([]);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
@@ -78,14 +76,15 @@ export default function ContractorsPage() {
 
   const fetchContractors = useCallback(async () => {
     setLoading(true);
-
-    const { data } = await supabase
-      .from("contractors")
-      .select("*")
-      .order("name");
-    setContractors(data ?? []);
-    setLoading(false);
-  }, [supabase]);
+    try {
+      const data = await db.query("contractors", { order: "name" });
+      setContractors(data ?? []);
+    } catch (err) {
+      console.error("Failed to fetch contractors:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     fetchContractors();
@@ -134,42 +133,35 @@ export default function ContractorsPage() {
 
   const handleAdd = async () => {
     const payload = buildPayload();
-
-    const { error } = await supabase
-      .from("contractors")
-      .insert({ ...payload, is_active: true });
-
-    if (!error) {
+    try {
+      await db.insert("contractors", { ...payload, is_active: true });
       setAddOpen(false);
       setForm(emptyForm);
       fetchContractors();
+    } catch (err) {
+      console.error("Failed to add contractor:", err);
     }
   };
 
   const handleEdit = async () => {
     if (!editContractor) return;
     const payload = buildPayload();
-
-    const { error } = await supabase
-      .from("contractors")
-      .update(payload)
-      .eq("id", editContractor.id);
-
-    if (!error) {
+    try {
+      await db.update("contractors", editContractor.id, payload);
       setEditContractor(null);
       setForm(emptyForm);
       fetchContractors();
+    } catch (err) {
+      console.error("Failed to update contractor:", err);
     }
   };
 
   const toggleActive = async (contractor: Contractor) => {
-    const { error } = await supabase
-      .from("contractors")
-      .update({ is_active: !contractor.is_active })
-      .eq("id", contractor.id);
-
-    if (!error) {
+    try {
+      await db.update("contractors", contractor.id, { is_active: !contractor.is_active });
       fetchContractors();
+    } catch (err) {
+      console.error("Failed to toggle contractor status:", err);
     }
   };
 
