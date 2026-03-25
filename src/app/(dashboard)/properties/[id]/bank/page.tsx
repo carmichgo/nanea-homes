@@ -16,33 +16,17 @@ interface SyncResult {
   removed: number;
 }
 
-function PlaidLinkButton({
+function PlaidLinkOpener({
+  linkToken,
   propertyId,
   onSuccess,
+  onExit,
 }: {
+  linkToken: string;
   propertyId: string;
   onSuccess: () => void;
+  onExit: () => void;
 }) {
-  const [linkToken, setLinkToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const fetchLinkToken = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/plaid/create-link-token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ property_id: propertyId }),
-      });
-      const data = await res.json();
-      setLinkToken(data.link_token);
-    } catch (err) {
-      console.error("Failed to create link token:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const { open, ready } = usePlaidLink({
     token: linkToken,
     onSuccess: async (publicToken, metadata) => {
@@ -53,8 +37,10 @@ function PlaidLinkButton({
           body: JSON.stringify({
             public_token: publicToken,
             property_id: propertyId,
-            institution: metadata.institution,
-            account: metadata.accounts?.[0],
+            institution_name: metadata.institution?.name,
+            account_name: metadata.accounts?.[0]?.name,
+            account_mask: metadata.accounts?.[0]?.mask,
+            account_id: metadata.accounts?.[0]?.id,
           }),
         });
         onSuccess();
@@ -62,19 +48,18 @@ function PlaidLinkButton({
         console.error("Token exchange failed:", err);
       }
     },
+    onExit: () => {
+      onExit();
+    },
   });
 
   useEffect(() => {
-    if (linkToken && ready) {
+    if (ready) {
       open();
     }
-  }, [linkToken, ready, open]);
+  }, [ready, open]);
 
-  return (
-    <Button onClick={fetchLinkToken} disabled={loading}>
-      {loading ? "Preparing..." : "Connect Bank Account"}
-    </Button>
-  );
+  return null;
 }
 
 export default function BankPage() {
@@ -85,6 +70,9 @@ export default function BankPage() {
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [linkToken, setLinkToken] = useState<string | null>(null);
+  const [linkLoading, setLinkLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchConnection = useCallback(async () => {
     setLoading(true);
@@ -95,7 +83,6 @@ export default function BankPage() {
       });
       setConnection(data);
     } catch {
-      // No connection found or query failed
       setConnection(null);
     } finally {
       setLoading(false);
@@ -105,6 +92,28 @@ export default function BankPage() {
   useEffect(() => {
     fetchConnection();
   }, [fetchConnection]);
+
+  const handleConnect = async () => {
+    setLinkLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/plaid/create-link-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ property_id: propertyId }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setError(data.error);
+        setLinkLoading(false);
+        return;
+      }
+      setLinkToken(data.link_token);
+    } catch (err) {
+      setError("Failed to initialize Plaid. Check your Plaid credentials.");
+      setLinkLoading(false);
+    }
+  };
 
   const handleSync = async () => {
     setSyncing(true);
@@ -154,6 +163,23 @@ export default function BankPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Bank Connection</h1>
+
+      {/* Render Plaid Link opener only when we have a token */}
+      {linkToken && (
+        <PlaidLinkOpener
+          linkToken={linkToken}
+          propertyId={propertyId}
+          onSuccess={() => {
+            setLinkToken(null);
+            setLinkLoading(false);
+            fetchConnection();
+          }}
+          onExit={() => {
+            setLinkToken(null);
+            setLinkLoading(false);
+          }}
+        />
+      )}
 
       {connection ? (
         <Card>
@@ -234,10 +260,14 @@ export default function BankPage() {
               Connect a bank account to automatically import transactions for
               this property.
             </p>
-            <PlaidLinkButton
-              propertyId={propertyId}
-              onSuccess={fetchConnection}
-            />
+            {error && (
+              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                {error}
+              </div>
+            )}
+            <Button onClick={handleConnect} disabled={linkLoading}>
+              {linkLoading ? "Connecting..." : "Connect Bank Account"}
+            </Button>
           </CardContent>
         </Card>
       )}
