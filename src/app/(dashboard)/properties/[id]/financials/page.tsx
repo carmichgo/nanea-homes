@@ -3,22 +3,23 @@ import { Transaction, Property } from "@/types";
 import { PropertyFinancialsView } from "./property-financials-view";
 
 interface Props {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export default async function PropertyFinancialsPage({ params }: Props) {
-  const supabase = createClient();
+  const { id } = await params;
+  const supabase = await createClient();
 
   const [{ data: property }, { data: transactions }] = await Promise.all([
     supabase
       .from("properties")
       .select("*")
-      .eq("id", params.id)
+      .eq("id", id)
       .single(),
     supabase
       .from("transactions")
       .select("*")
-      .eq("property_id", params.id)
+      .eq("property_id", id)
       .order("date", { ascending: false }),
   ]);
 

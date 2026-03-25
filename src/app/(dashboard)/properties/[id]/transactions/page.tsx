@@ -3,27 +3,28 @@ import { Transaction } from "@/types";
 import { TransactionsView } from "./transactions-view";
 
 interface Props {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export default async function TransactionsPage({ params }: Props) {
-  const supabase = createClient();
+  const { id } = await params;
+  const supabase = await createClient();
 
   const { data: property } = await supabase
     .from("properties")
     .select("id, name")
-    .eq("id", params.id)
+    .eq("id", id)
     .single();
 
   const { data: transactions } = await supabase
     .from("transactions")
     .select("*")
-    .eq("property_id", params.id)
+    .eq("property_id", id)
     .order("date", { ascending: false });
 
   return (
     <TransactionsView
-      propertyId={params.id}
+      propertyId={id}
       propertyName={property?.name ?? "Property"}
       initialTransactions={(transactions as Transaction[]) ?? []}
     />

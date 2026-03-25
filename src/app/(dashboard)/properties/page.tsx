@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Building2, Plus, ArrowRight } from "lucide-react";
 
 export default async function PropertiesPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const {
     data: { user },

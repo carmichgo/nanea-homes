@@ -17,18 +17,19 @@ import {
 } from "lucide-react";
 
 interface PropertyDetailPageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export default async function PropertyDetailPage({
   params,
 }: PropertyDetailPageProps) {
-  const supabase = createClient();
+  const { id } = await params;
+  const supabase = await createClient();
 
   const { data: property } = await supabase
     .from("properties")
     .select("*")
-    .eq("id", params.id)
+    .eq("id", id)
     .single();
 
   if (!property) {
@@ -41,7 +42,7 @@ export default async function PropertyDetailPage({
   const { data: recentTransactions } = await supabase
     .from("transactions")
     .select("*")
-    .eq("property_id", params.id)
+    .eq("property_id", id)
     .order("date", { ascending: false })
     .limit(5);
 
@@ -51,7 +52,7 @@ export default async function PropertyDetailPage({
   const { count: openMaintenanceCount } = await supabase
     .from("maintenance_records")
     .select("*", { count: "exact", head: true })
-    .eq("property_id", params.id)
+    .eq("property_id", id)
     .in("status", ["open", "in_progress"]);
 
   const propertyTypeLabels: Record<string, string> = {
@@ -65,31 +66,31 @@ export default async function PropertyDetailPage({
     {
       title: "Transactions",
       description: "View income and expenses",
-      href: `/properties/${params.id}/transactions`,
+      href: `/properties/${id}/transactions`,
       icon: DollarSign,
     },
     {
       title: "Financial Reports",
       description: "Revenue, expenses, and P&L",
-      href: `/properties/${params.id}/financials`,
+      href: `/properties/${id}/financials`,
       icon: FileText,
     },
     {
       title: "Documents",
       description: "Leases, insurance, and more",
-      href: `/properties/${params.id}/documents`,
+      href: `/properties/${id}/documents`,
       icon: FileText,
     },
     {
       title: "Maintenance",
       description: `${openMaintenanceCount ?? 0} open item${openMaintenanceCount !== 1 ? "s" : ""}`,
-      href: `/properties/${params.id}/maintenance`,
+      href: `/properties/${id}/maintenance`,
       icon: Wrench,
     },
     {
       title: "Bank Connection",
       description: "Link bank accounts",
-      href: `/properties/${params.id}/bank`,
+      href: `/properties/${id}/bank`,
       icon: Landmark,
     },
   ];
@@ -191,7 +192,7 @@ export default async function PropertyDetailPage({
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg">Recent Transactions</CardTitle>
           <Button variant="ghost" size="sm" asChild>
-            <Link href={`/properties/${params.id}/transactions`}>
+            <Link href={`/properties/${id}/transactions`}>
               View All
               <ArrowRight className="ml-1 h-4 w-4" />
             </Link>
