@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { plaidClient } from '@/lib/plaid/client';
 
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   try {
-    const { property_id } = await request.json();
+    const { property_id, full_sync } = await request.json();
 
     const adminClient = createAdminClient();
 
@@ -21,7 +23,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let cursor = connection.cursor || undefined;
+    // If full_sync requested, reset cursor to pull everything from scratch
+    let cursor = full_sync ? undefined : (connection.cursor || undefined);
     let totalAdded = 0;
     let totalModified = 0;
     let totalRemoved = 0;
@@ -90,6 +93,76 @@ export async function POST(request: NextRequest) {
       totalRemoved += removed.length;
       cursor = next_cursor;
       hasMore = has_more;
+    }
+
+    // Also fetch older history via transactionsGet for full coverage
+    // transactionsSync only returns data from the initial sync window,
+    // transactionsGet lets us specify an explicit date range
+    const startDate = new Date();
+    startDate.setFullYear(startDate.getFullYear() - 2);
+    const endDate = new Date();
+
+    let offset = 0;
+    const batchSize = 500;
+    let fetchMore = true;
+
+    while (fetchMore) {
+      try {
+        const getResponse = await plaidClient.transactionsGet({
+          access_token: connection.plaid_access_token,
+          start_date: startDate.toISOString().split('T')[0],
+          end_date: endDate.toISOString().split('T')[0],
+          options: {
+            count: batchSize,
+            offset,
+          },
+        });
+
+        const { transactions, total_transactions } = getResponse.data;
+
+        if (transactions.length > 0) {
+          const transactionsToUpsert = transactions.map((txn) => {
+            const isExpense = txn.amount > 0;
+            return {
+              property_id,
+              plaid_transaction_id: txn.transaction_id,
+              type: isExpense ? 'expense' : 'income',
+              status: txn.pending ? 'pending' : 'posted',
+              amount: Math.abs(txn.amount),
+              category:
+                txn.personal_finance_category?.primary ||
+                (txn.category ? txn.category[0] : 'Other'),
+              subcategory:
+                txn.personal_finance_category?.detailed || null,
+              description: txn.name,
+              merchant_name: txn.merchant_name || null,
+              date: txn.date,
+              is_manual: false,
+            };
+          });
+
+          for (let i = 0; i < transactionsToUpsert.length; i += 500) {
+            const batch = transactionsToUpsert.slice(i, i + 500);
+            const { error: upsertError } = await adminClient
+              .from('transactions')
+              .upsert(batch, {
+                onConflict: 'plaid_transaction_id',
+              });
+            if (upsertError) {
+              console.error('Error upserting historical transactions:', upsertError);
+            }
+          }
+
+          totalAdded += transactions.length;
+        }
+
+        offset += transactions.length;
+        fetchMore = offset < total_transactions;
+      } catch (err) {
+        // transactionsGet may fail if not enough history - that's ok
+        console.error('transactionsGet page error (may be normal):', err);
+        fetchMore = false;
+      }
     }
 
     // Update connection cursor and last_synced_at

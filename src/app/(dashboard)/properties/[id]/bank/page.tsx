@@ -115,14 +115,14 @@ export default function BankPage() {
     }
   };
 
-  const handleSync = async () => {
+  const handleSync = async (fullSync = false) => {
     setSyncing(true);
     setSyncResult(null);
     try {
       const res = await fetch("/api/plaid/sync-transactions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ property_id: propertyId }),
+        body: JSON.stringify({ property_id: propertyId, full_sync: fullSync }),
       });
       const data = await res.json();
       setSyncResult({
@@ -237,8 +237,11 @@ export default function BankPage() {
             )}
 
             <div className="flex gap-2">
-              <Button onClick={handleSync} disabled={syncing}>
-                {syncing ? "Syncing..." : "Sync Now"}
+              <Button onClick={() => handleSync(false)} disabled={syncing}>
+                {syncing ? "Syncing..." : "Sync New"}
+              </Button>
+              <Button variant="outline" onClick={() => handleSync(true)} disabled={syncing}>
+                {syncing ? "Syncing..." : "Full Sync (2 Years)"}
               </Button>
               <Button
                 variant="destructive"
