@@ -87,19 +87,28 @@ For each transaction, determine the best category and type.
 CATEGORIES: ${CATEGORIES.join(", ")}
 TYPES: income (money received like rent payments, refunds), expense (money spent like repairs, insurance, utilities), internal (inter-account transfers, bank fees, ATM withdrawals that don't affect P&L)
 
+IMPORTANT: Pay close attention to whether a transaction is an inter-account transfer. These MUST be marked as "internal" type with "transfer" category so they don't distort the P&L.
+
 Rules:
 - Rent payments from tenants = income, category "rent"
 - Mortgage/loan payments = expense, category "mortgage"
 - Insurance premiums = expense, category "insurance"
-- Utility bills = expense, category "utilities"
-- Repairs, maintenance, handyman = expense, category "repair"
+- Utility bills (electric, water, gas, internet, sewer, trash) = expense, category "utilities"
+- Repairs, maintenance, handyman, plumber, electrician = expense, category "repair"
 - Property management fees = expense, category "management_fee"
-- Property taxes = expense, category "tax"
-- Transfers between accounts, Zelle transfers to self, ACH transfers = internal, category "transfer"
-- Bank fees = internal, category "transfer"
+- Property taxes, county tax = expense, category "tax"
 - Cleaning services = expense, category "cleaning"
-- Legal fees = expense, category "legal"
-- Supplies, hardware store = expense, category "supplies"
+- Legal fees, attorney = expense, category "legal"
+- Supplies, hardware store, Home Depot, Lowes = expense, category "supplies"
+- Advertising, listing fees = expense, category "advertising"
+- ANY transfer between bank accounts = internal, category "transfer"
+- Zelle transfers, Venmo transfers to self, wire transfers between own accounts = internal, category "transfer"
+- ACH transfers, direct deposits from own accounts = internal, category "transfer"
+- Bank fees, service charges, overdraft fees = internal, category "transfer"
+- ATM withdrawals, cash advances = internal, category "transfer"
+- Credit card payments from checking = internal, category "transfer"
+- Descriptions containing "transfer", "xfer", "ACH", "wire" between own accounts = internal, category "transfer"
+- If the description looks like a transfer or internal bank movement, classify as internal
 
 TRANSACTIONS:
 ${transactionList}
