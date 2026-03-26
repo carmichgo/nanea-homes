@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
         .join("\n");
 
       const message = await anthropic.messages.create({
-        model: "claude-sonnet-4-6-20250514",
+        model: "claude-sonnet-4-5-20241022",
         max_tokens: 4096,
         messages: [
           {
@@ -151,10 +151,11 @@ Respond with ONLY a JSON array, no markdown, no explanation:
       updated: totalUpdated,
       total: transactions.length,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("AI categorization error:", error);
+    const message = error?.message || error?.error?.message || "Failed to categorize transactions";
     return NextResponse.json(
-      { error: "Failed to categorize transactions" },
+      { error: message },
       { status: 500 }
     );
   }
