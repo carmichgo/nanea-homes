@@ -16,6 +16,7 @@ import {
   Landmark,
   ArrowRight,
   ArrowLeft,
+  Pencil,
 } from "lucide-react";
 
 interface PropertyDetailPageProps {
@@ -124,10 +125,18 @@ export default async function PropertyDetailPage({
                 {typedProperty.city}, {typedProperty.state} {typedProperty.zip}
               </p>
             </div>
-            <Badge variant="secondary">
-              {propertyTypeLabels[typedProperty.property_type] ??
-                typedProperty.property_type}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/properties/${id}/edit`}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit Property
+                </Link>
+              </Button>
+              <Badge variant="secondary">
+                {propertyTypeLabels[typedProperty.property_type] ??
+                  typedProperty.property_type}
+              </Badge>
+            </div>
           </div>
         </CardHeader>
         <CardContent>

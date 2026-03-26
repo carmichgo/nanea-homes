@@ -2,6 +2,31 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { plaidClient } from '@/lib/plaid/client';
 
+function mapPlaidCategory(plaidCategory: string): string {
+  const map: Record<string, string> = {
+    'INCOME': 'rent',
+    'RENT': 'rent',
+    'TRANSFER_IN': 'transfer',
+    'TRANSFER_OUT': 'transfer',
+    'BANK_FEES': 'other',
+    'LOAN_PAYMENTS': 'mortgage',
+    'FOOD_AND_DRINK': 'other',
+    'GENERAL_MERCHANDISE': 'supplies',
+    'HOME_IMPROVEMENT': 'repair',
+    'GENERAL_SERVICES': 'other',
+    'GOVERNMENT_AND_NON_PROFIT': 'tax',
+    'TRANSPORTATION': 'other',
+    'TRAVEL': 'other',
+    'ENTERTAINMENT': 'other',
+    'PERSONAL_CARE': 'other',
+    'MEDICAL': 'other',
+    'UTILITIES': 'utilities',
+    'INSURANCE': 'insurance',
+    'TAX': 'tax',
+  };
+  return map[plaidCategory] || 'other';
+}
+
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
@@ -58,9 +83,7 @@ export async function POST(request: NextRequest) {
           type,
           status: txn.pending ? 'pending' : 'posted',
           amount: Math.abs(txn.amount),
-          category:
-            txn.personal_finance_category?.primary ||
-            (txn.category ? txn.category[0] : 'Other'),
+          category: mapPlaidCategory(txn.personal_finance_category?.primary || ''),
           subcategory:
             txn.personal_finance_category?.detailed || null,
           description: txn.name,
@@ -147,9 +170,7 @@ export async function POST(request: NextRequest) {
               type,
               status: txn.pending ? 'pending' : 'posted',
               amount: Math.abs(txn.amount),
-              category:
-                txn.personal_finance_category?.primary ||
-                (txn.category ? txn.category[0] : 'Other'),
+              category: mapPlaidCategory(txn.personal_finance_category?.primary || ''),
               subcategory:
                 txn.personal_finance_category?.detailed || null,
               description: txn.name,

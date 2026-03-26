@@ -53,6 +53,7 @@ Type rules:
 - "expense" = money spent (repairs, insurance, mortgage, utilities, fees)
 - "internal" = ONLY for transfers between the owner's own bank accounts, not real income or expense
 
+You MUST use one of the exact category values listed above. Do not invent new categories.
 Respond with ONLY a JSON object, no markdown:
 {"category": "category_name", "type": "income|expense|internal"}`,
         },
