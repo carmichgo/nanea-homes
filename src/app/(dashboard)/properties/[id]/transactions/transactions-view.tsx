@@ -33,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Sparkles } from "lucide-react";
 
 const CATEGORIES = [
   "rent",
@@ -77,8 +77,7 @@ export function TransactionsView({
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [categorizing, setCategorizing] = useState(false);
-  const [categorizeResult, setCategorizeResult] = useState<string | null>(null);
+  const [categorizingId, setCategorizingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Edit state
@@ -158,26 +157,28 @@ export function TransactionsView({
     }
   }
 
-  async function handleAICategorize() {
-    setCategorizing(true);
-    setCategorizeResult(null);
+  async function handleAICategorize(t: Transaction) {
+    setCategorizingId(t.id);
     try {
       const res = await fetch("/api/ai/categorize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ property_id: propertyId }),
+        body: JSON.stringify({
+          id: t.id,
+          description: t.description || "",
+          merchant_name: t.merchant_name || "",
+          amount: t.amount,
+          direction: t.type === "income" ? "incoming" : "outgoing",
+        }),
       });
       const data = await res.json();
-      if (data.error) {
-        setCategorizeResult(`Error: ${data.error}`);
-      } else {
-        setCategorizeResult(`Categorized ${data.updated} of ${data.total} transactions`);
+      if (!data.error) {
         router.refresh();
       }
     } catch {
-      setCategorizeResult("Failed to categorize");
+      // silent fail
     } finally {
-      setCategorizing(false);
+      setCategorizingId(null);
     }
   }
 
@@ -223,14 +224,6 @@ export function TransactionsView({
           <p className="text-muted-foreground">{propertyName}</p>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={handleAICategorize}
-            disabled={categorizing}
-            title="Use AI to auto-categorize all transactions"
-          >
-            {categorizing ? "Categorizing..." : "AI Categorize"}
-          </Button>
           <Button variant="outline" onClick={handleSyncFromBank} disabled={syncing}>
             {syncing ? "Syncing..." : "Sync from Bank"}
           </Button>
@@ -375,12 +368,6 @@ export function TransactionsView({
         </div>
       </div>
 
-      {categorizeResult && (
-        <div className="rounded-md border bg-muted/50 p-3 text-sm">
-          {categorizeResult}
-        </div>
-      )}
-
       {/* Transactions Table */}
       <div className="rounded-lg border">
         <Table>
@@ -477,7 +464,17 @@ export function TransactionsView({
                         </Button>
                       </div>
                     ) : (
-                      <div className="flex gap-1">
+                      <div className="flex gap-0.5">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-purple-500 hover:text-purple-700"
+                          onClick={() => handleAICategorize(t)}
+                          disabled={categorizingId === t.id}
+                          title="AI categorize"
+                        >
+                          <Sparkles className={`h-3.5 w-3.5 ${categorizingId === t.id ? "animate-pulse" : ""}`} />
+                        </Button>
                         <Button
                           size="sm"
                           variant="ghost"
