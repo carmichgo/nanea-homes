@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { db } from "@/lib/api";
 import { Transaction, TransactionType } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Pencil } from "lucide-react";
 
 const CATEGORIES = [
   "rent",
@@ -41,8 +43,17 @@ const CATEGORIES = [
   "utilities",
   "management_fee",
   "tax",
+  "supplies",
+  "cleaning",
+  "advertising",
+  "legal",
+  "transfer",
   "other",
 ] as const;
+
+function formatCategory(cat: string): string {
+  return cat.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
 
 interface TransactionsViewProps {
   propertyId: string;
@@ -67,6 +78,11 @@ export function TransactionsView({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Edit state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editCategory, setEditCategory] = useState("");
+  const [editType, setEditType] = useState<TransactionType>("expense");
 
   // Form state
   const [formType, setFormType] = useState<TransactionType>("income");
@@ -140,6 +156,30 @@ export function TransactionsView({
     }
   }
 
+  function startEdit(t: Transaction) {
+    setEditingId(t.id);
+    setEditCategory(t.category || "other");
+    setEditType(t.type);
+  }
+
+  async function saveEdit() {
+    if (!editingId) return;
+    try {
+      await db.update("transactions", editingId, {
+        category: editCategory,
+        type: editType,
+      });
+      setEditingId(null);
+      router.refresh();
+    } catch (err) {
+      console.error("Failed to update transaction:", err);
+    }
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -202,7 +242,7 @@ export function TransactionsView({
                     <SelectContent>
                       {CATEGORIES.map((cat) => (
                         <SelectItem key={cat} value={cat}>
-                          {cat.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                          {formatCategory(cat)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -301,12 +341,13 @@ export function TransactionsView({
               <TableHead>Type</TableHead>
               <TableHead className="text-right">Amount</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="w-10"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredTransactions.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                   No transactions found.
                 </TableCell>
               </TableRow>
@@ -317,19 +358,51 @@ export function TransactionsView({
                     {formatDate(t.date)}
                   </TableCell>
                   <TableCell>{t.description || t.merchant_name || "-"}</TableCell>
-                  <TableCell className="capitalize">
-                    {(t.category ?? "-").replace(/_/g, " ")}
+                  <TableCell>
+                    {editingId === t.id ? (
+                      <Select value={editCategory} onValueChange={setEditCategory}>
+                        <SelectTrigger className="h-8 w-40">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CATEGORIES.map((cat) => (
+                            <SelectItem key={cat} value={cat}>
+                              {formatCategory(cat)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <span className="capitalize">
+                        {formatCategory(t.category ?? "other")}
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell>
-                    <Badge
-                      className={
-                        t.type === "income"
-                          ? "bg-green-100 text-green-800 hover:bg-green-100"
-                          : "bg-red-100 text-red-800 hover:bg-red-100"
-                      }
-                    >
-                      {t.type}
-                    </Badge>
+                    {editingId === t.id ? (
+                      <Select
+                        value={editType}
+                        onValueChange={(v) => setEditType(v as TransactionType)}
+                      >
+                        <SelectTrigger className="h-8 w-28">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="income">Income</SelectItem>
+                          <SelectItem value="expense">Expense</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Badge
+                        className={
+                          t.type === "income"
+                            ? "bg-green-100 text-green-800 hover:bg-green-100"
+                            : "bg-red-100 text-red-800 hover:bg-red-100"
+                        }
+                      >
+                        {t.type}
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell className="text-right whitespace-nowrap">
                     {formatCurrency(t.amount)}
@@ -338,6 +411,28 @@ export function TransactionsView({
                     <Badge variant="outline" className="capitalize">
                       {t.status}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {editingId === t.id ? (
+                      <div className="flex gap-1">
+                        <Button size="sm" variant="default" className="h-7 px-2 text-xs" onClick={saveEdit}>
+                          Save
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={cancelEdit}>
+                          Cancel
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0"
+                        onClick={() => startEdit(t)}
+                        title="Edit category"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))

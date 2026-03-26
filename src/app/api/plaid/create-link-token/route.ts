@@ -12,6 +12,9 @@ export async function POST(request: NextRequest) {
       products: [Products.Transactions],
       country_codes: [CountryCode.Us],
       language: 'en',
+      transactions: {
+        days_requested: 730,
+      },
     });
 
     return NextResponse.json({ link_token: response.data.link_token });
