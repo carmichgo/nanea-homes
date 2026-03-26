@@ -42,11 +42,20 @@ export async function POST(request: NextRequest) {
 
       // Process added and modified transactions
       const transactionsToUpsert = [...added, ...modified].map((txn) => {
-        const isExpense = txn.amount > 0;
+        // Determine transaction type
+        let type: string;
+        const primaryCategory = txn.personal_finance_category?.primary || '';
+        if (primaryCategory.startsWith('TRANSFER') || primaryCategory === 'BANK_FEES') {
+          type = 'internal';
+        } else if (txn.amount > 0) {
+          type = 'expense';
+        } else {
+          type = 'income';
+        }
         return {
           property_id,
           plaid_transaction_id: txn.transaction_id,
-          type: isExpense ? 'expense' : 'income',
+          type,
           status: txn.pending ? 'pending' : 'posted',
           amount: Math.abs(txn.amount),
           category:
@@ -122,11 +131,20 @@ export async function POST(request: NextRequest) {
 
         if (transactions.length > 0) {
           const transactionsToUpsert = transactions.map((txn) => {
-            const isExpense = txn.amount > 0;
+            // Determine transaction type
+            let type: string;
+            const primaryCategory = txn.personal_finance_category?.primary || '';
+            if (primaryCategory.startsWith('TRANSFER') || primaryCategory === 'BANK_FEES') {
+              type = 'internal';
+            } else if (txn.amount > 0) {
+              type = 'expense';
+            } else {
+              type = 'income';
+            }
             return {
               property_id,
               plaid_transaction_id: txn.transaction_id,
-              type: isExpense ? 'expense' : 'income',
+              type,
               status: txn.pending ? 'pending' : 'posted',
               amount: Math.abs(txn.amount),
               category:

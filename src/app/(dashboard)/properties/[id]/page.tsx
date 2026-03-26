@@ -223,10 +223,14 @@ export default async function PropertyDetailPage({
                   </div>
                   <p
                     className={`text-sm font-semibold ${
-                      tx.type === "income" ? "text-green-600" : "text-red-600"
+                      tx.type === "income"
+                        ? "text-green-600"
+                        : tx.type === "internal"
+                        ? "text-yellow-600"
+                        : "text-red-600"
                     }`}
                   >
-                    {tx.type === "income" ? "+" : "-"}
+                    {tx.type === "income" ? "+" : tx.type === "internal" ? "~" : "-"}
                     {formatCurrency(Math.abs(tx.amount))}
                   </p>
                 </div>

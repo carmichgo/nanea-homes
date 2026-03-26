@@ -130,7 +130,7 @@ export function PortfolioFinancialsView({
     for (const t of periodTransactions) {
       if (!map[t.property_id]) continue;
       if (t.type === "income") map[t.property_id].income.push(t);
-      else map[t.property_id].expense.push(t);
+      else if (t.type === "expense") map[t.property_id].expense.push(t);
     }
     return map;
   }, [properties, periodTransactions]);

@@ -77,6 +77,8 @@ export function TransactionsView({
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [categorizing, setCategorizing] = useState(false);
+  const [categorizeResult, setCategorizeResult] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Edit state
@@ -156,6 +158,29 @@ export function TransactionsView({
     }
   }
 
+  async function handleAICategorize() {
+    setCategorizing(true);
+    setCategorizeResult(null);
+    try {
+      const res = await fetch("/api/ai/categorize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ property_id: propertyId }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setCategorizeResult(`Error: ${data.error}`);
+      } else {
+        setCategorizeResult(`Categorized ${data.updated} of ${data.total} transactions`);
+        router.refresh();
+      }
+    } catch {
+      setCategorizeResult("Failed to categorize");
+    } finally {
+      setCategorizing(false);
+    }
+  }
+
   function startEdit(t: Transaction) {
     setEditingId(t.id);
     setEditCategory(t.category || "other");
@@ -188,6 +213,14 @@ export function TransactionsView({
           <p className="text-muted-foreground">{propertyName}</p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleAICategorize}
+            disabled={categorizing}
+            title="Use AI to auto-categorize all transactions"
+          >
+            {categorizing ? "Categorizing..." : "AI Categorize"}
+          </Button>
           <Button variant="outline" onClick={handleSyncFromBank} disabled={syncing}>
             {syncing ? "Syncing..." : "Sync from Bank"}
           </Button>
@@ -215,6 +248,7 @@ export function TransactionsView({
                     <SelectContent>
                       <SelectItem value="income">Income</SelectItem>
                       <SelectItem value="expense">Expense</SelectItem>
+                      <SelectItem value="internal">Internal Transfer</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -316,6 +350,7 @@ export function TransactionsView({
               <SelectItem value="all">All</SelectItem>
               <SelectItem value="income">Income</SelectItem>
               <SelectItem value="expense">Expense</SelectItem>
+              <SelectItem value="internal">Internal</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -329,6 +364,12 @@ export function TransactionsView({
           />
         </div>
       </div>
+
+      {categorizeResult && (
+        <div className="rounded-md border bg-muted/50 p-3 text-sm">
+          {categorizeResult}
+        </div>
+      )}
 
       {/* Transactions Table */}
       <div className="rounded-lg border">
@@ -390,6 +431,7 @@ export function TransactionsView({
                         <SelectContent>
                           <SelectItem value="income">Income</SelectItem>
                           <SelectItem value="expense">Expense</SelectItem>
+                          <SelectItem value="internal">Internal</SelectItem>
                         </SelectContent>
                       </Select>
                     ) : (
@@ -397,6 +439,8 @@ export function TransactionsView({
                         className={
                           t.type === "income"
                             ? "bg-green-100 text-green-800 hover:bg-green-100"
+                            : t.type === "internal"
+                            ? "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"
                             : "bg-red-100 text-red-800 hover:bg-red-100"
                         }
                       >

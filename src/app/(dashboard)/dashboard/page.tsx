@@ -73,7 +73,7 @@ export default async function DashboardPage() {
     };
     if (tx.type === "income") {
       existing.income += tx.amount;
-    } else {
+    } else if (tx.type === "expense") {
       existing.expenses += tx.amount;
     }
     propertyTransactionMap.set(tx.property_id, existing);

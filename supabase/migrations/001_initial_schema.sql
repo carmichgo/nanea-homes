@@ -9,7 +9,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Enum Types
 -- ============================================================================
 
-CREATE TYPE transaction_type AS ENUM ('income', 'expense');
+CREATE TYPE transaction_type AS ENUM ('income', 'expense', 'internal');
 CREATE TYPE transaction_status AS ENUM ('pending', 'posted', 'reconciled');
 CREATE TYPE maintenance_status AS ENUM ('open', 'in_progress', 'completed', 'cancelled');
 CREATE TYPE maintenance_priority AS ENUM ('low', 'medium', 'high', 'urgent');

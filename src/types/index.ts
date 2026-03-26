@@ -1,4 +1,4 @@
-export type TransactionType = "income" | "expense";
+export type TransactionType = "income" | "expense" | "internal";
 export type TransactionStatus = "pending" | "posted" | "reconciled";
 export type MaintenanceStatus = "open" | "in_progress" | "completed" | "cancelled";
 export type MaintenancePriority = "low" | "medium" | "high" | "urgent";
