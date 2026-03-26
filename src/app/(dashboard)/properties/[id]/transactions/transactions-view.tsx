@@ -78,7 +78,12 @@ export function TransactionsView({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [categorizingId, setCategorizingId] = useState<string | null>(null);
+  const [categorizingAll, setCategorizingAll] = useState(false);
+  const [categorizeProgress, setCategorizeProgress] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // Selection state
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   // Edit state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -108,10 +113,30 @@ export function TransactionsView({
     });
   }, [initialTransactions, dateFrom, dateTo, typeFilter, categoryFilter]);
 
+  const allSelected =
+    filteredTransactions.length > 0 &&
+    filteredTransactions.every((t) => selected.has(t.id));
+
+  function toggleSelectAll() {
+    if (allSelected) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filteredTransactions.map((t) => t.id)));
+    }
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   async function handleAddTransaction() {
     if (!formAmount || !formDate) return;
     setSubmitting(true);
-
     try {
       const res = await fetch("/api/transactions", {
         method: "POST",
@@ -125,12 +150,7 @@ export function TransactionsView({
           date: formDate,
         }),
       });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to add transaction");
-      }
-
+      if (!res.ok) throw new Error("Failed to add transaction");
       setDialogOpen(false);
       setFormAmount("");
       setFormDescription("");
@@ -157,28 +177,52 @@ export function TransactionsView({
     }
   }
 
+  async function categorizeOne(t: Transaction) {
+    const res = await fetch("/api/ai/categorize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: t.id,
+        description: t.description || "",
+        merchant_name: t.merchant_name || "",
+        amount: t.amount,
+        direction: t.type === "income" ? "incoming" : "outgoing",
+      }),
+    });
+    return res.json();
+  }
+
   async function handleAICategorize(t: Transaction) {
     setCategorizingId(t.id);
     try {
-      const res = await fetch("/api/ai/categorize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: t.id,
-          description: t.description || "",
-          merchant_name: t.merchant_name || "",
-          amount: t.amount,
-          direction: t.type === "income" ? "incoming" : "outgoing",
-        }),
-      });
-      const data = await res.json();
-      if (!data.error) {
-        router.refresh();
-      }
+      await categorizeOne(t);
+      router.refresh();
     } catch {
-      // silent fail
+      // silent
     } finally {
       setCategorizingId(null);
+    }
+  }
+
+  async function handleAICategorizeAll() {
+    setCategorizingAll(true);
+    setCategorizeProgress(`0 / ${filteredTransactions.length}`);
+    try {
+      for (let i = 0; i < filteredTransactions.length; i++) {
+        const t = filteredTransactions[i];
+        setCategorizingId(t.id);
+        setCategorizeProgress(`${i + 1} / ${filteredTransactions.length}`);
+        try {
+          await categorizeOne(t);
+        } catch {
+          // continue on error
+        }
+      }
+      router.refresh();
+    } finally {
+      setCategorizingId(null);
+      setCategorizingAll(false);
+      setCategorizeProgress("");
     }
   }
 
@@ -216,6 +260,21 @@ export function TransactionsView({
     }
   }
 
+  async function handleBulkDelete() {
+    if (selected.size === 0) return;
+    if (!confirm(`Delete ${selected.size} selected transactions?`)) return;
+    try {
+      const ids = Array.from(selected);
+      for (const id of ids) {
+        await db.remove("transactions", id);
+      }
+      setSelected(new Set());
+      router.refresh();
+    } catch (err) {
+      console.error("Failed to bulk delete:", err);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -224,6 +283,15 @@ export function TransactionsView({
           <p className="text-muted-foreground">{propertyName}</p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={handleAICategorizeAll}
+            disabled={categorizingAll || filteredTransactions.length === 0}
+            className="text-purple-600 border-purple-200 hover:bg-purple-50"
+          >
+            <Sparkles className={`mr-2 h-4 w-4 ${categorizingAll ? "animate-pulse" : ""}`} />
+            {categorizingAll ? `AI ${categorizeProgress}` : "AI Categorize All"}
+          </Button>
           <Button variant="outline" onClick={handleSyncFromBank} disabled={syncing}>
             {syncing ? "Syncing..." : "Sync from Bank"}
           </Button>
@@ -305,10 +373,7 @@ export function TransactionsView({
                 </div>
               </div>
               <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setDialogOpen(false)}
-                >
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>
                   Cancel
                 </Button>
                 <Button onClick={handleAddTransaction} disabled={submitting}>
@@ -368,30 +433,71 @@ export function TransactionsView({
         </div>
       </div>
 
+      {/* Bulk actions */}
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 p-3">
+          <span className="text-sm font-medium">{selected.size} selected</span>
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={handleBulkDelete}
+          >
+            <Trash2 className="mr-1 h-3.5 w-3.5" />
+            Delete Selected
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setSelected(new Set())}
+          >
+            Clear Selection
+          </Button>
+        </div>
+      )}
+
       {/* Transactions Table */}
       <div className="rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={toggleSelectAll}
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+              </TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Description</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Type</TableHead>
               <TableHead className="text-right">Amount</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="w-10"></TableHead>
+              <TableHead className="w-24"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredTransactions.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">
                   No transactions found.
                 </TableCell>
               </TableRow>
             ) : (
               filteredTransactions.map((t) => (
-                <TableRow key={t.id}>
+                <TableRow
+                  key={t.id}
+                  className={selected.has(t.id) ? "bg-muted/50" : undefined}
+                >
+                  <TableCell>
+                    <input
+                      type="checkbox"
+                      checked={selected.has(t.id)}
+                      onChange={() => toggleSelect(t.id)}
+                      className="h-4 w-4 rounded border-gray-300"
+                    />
+                  </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {formatDate(t.date)}
                   </TableCell>
@@ -445,8 +551,19 @@ export function TransactionsView({
                       </Badge>
                     )}
                   </TableCell>
-                  <TableCell className="text-right whitespace-nowrap">
-                    {formatCurrency(t.amount)}
+                  <TableCell className="text-right whitespace-nowrap font-medium">
+                    <span
+                      className={
+                        t.type === "income"
+                          ? "text-green-600"
+                          : t.type === "internal"
+                          ? "text-yellow-600"
+                          : "text-red-600"
+                      }
+                    >
+                      {t.type === "income" ? "+" : t.type === "expense" ? "-" : "~"}
+                      {formatCurrency(t.amount)}
+                    </span>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="capitalize">
