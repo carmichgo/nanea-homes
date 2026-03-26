@@ -87,7 +87,12 @@ For each transaction, determine the best category and type.
 CATEGORIES: ${CATEGORIES.join(", ")}
 TYPES: income (money received like rent payments, refunds), expense (money spent like repairs, insurance, utilities), internal (inter-account transfers, bank fees, ATM withdrawals that don't affect P&L)
 
-IMPORTANT: Pay close attention to whether a transaction is an inter-account transfer. These MUST be marked as "internal" type with "transfer" category so they don't distort the P&L.
+IMPORTANT about "internal" type:
+- "internal" means money moving between the owner's OWN accounts. It is NOT a real income or expense - it does not affect P&L.
+- Examples: transferring money from checking to savings, moving funds between property accounts, owner transferring money between their own accounts.
+- Bank fees, ATM withdrawals, service charges are real expenses - NOT internal.
+- Zelle/Venmo payments TO someone else (contractor, vendor) are expenses - NOT internal.
+- Only classify as "internal" if it's clearly money moving between the owner's own accounts.
 
 Rules:
 - Rent payments from tenants = income, category "rent"
@@ -101,14 +106,10 @@ Rules:
 - Legal fees, attorney = expense, category "legal"
 - Supplies, hardware store, Home Depot, Lowes = expense, category "supplies"
 - Advertising, listing fees = expense, category "advertising"
-- ANY transfer between bank accounts = internal, category "transfer"
-- Zelle transfers, Venmo transfers to self, wire transfers between own accounts = internal, category "transfer"
-- ACH transfers, direct deposits from own accounts = internal, category "transfer"
-- Bank fees, service charges, overdraft fees = internal, category "transfer"
-- ATM withdrawals, cash advances = internal, category "transfer"
-- Credit card payments from checking = internal, category "transfer"
-- Descriptions containing "transfer", "xfer", "ACH", "wire" between own accounts = internal, category "transfer"
-- If the description looks like a transfer or internal bank movement, classify as internal
+- Bank fees, service charges, overdraft fees = expense, category "other"
+- Transfers between the owner's own bank accounts = internal, category "transfer"
+- Moving funds between own checking/savings = internal, category "transfer"
+- Only use "internal" when it's clearly an inter-account transfer between the owner's own accounts
 
 TRANSACTIONS:
 ${transactionList}
