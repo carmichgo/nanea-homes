@@ -115,11 +115,17 @@ export async function DELETE(
   }
 
   const supabase = createAdminClient();
-  const { id } = await request.json();
-  if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
+  const { id, ids } = await request.json();
+
+  if (ids && Array.isArray(ids) && ids.length > 0) {
+    const { error } = await supabase.from(table).delete().in("id", ids);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, deleted: ids.length });
+  }
+
+  if (!id) return NextResponse.json({ error: "id or ids required" }, { status: 400 });
 
   const { error } = await supabase.from(table).delete().eq("id", id);
-
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }

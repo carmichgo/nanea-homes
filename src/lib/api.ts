@@ -69,4 +69,17 @@ export const db = {
     }
     return res.json();
   },
+
+  async bulkRemove(table: string, ids: string[]) {
+    const res = await fetch(`/api/db/${table}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Bulk delete failed");
+    }
+    return res.json();
+  },
 };

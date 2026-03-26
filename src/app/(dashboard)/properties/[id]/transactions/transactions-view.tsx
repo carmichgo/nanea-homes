@@ -264,10 +264,7 @@ export function TransactionsView({
     if (selected.size === 0) return;
     if (!confirm(`Delete ${selected.size} selected transactions?`)) return;
     try {
-      const ids = Array.from(selected);
-      for (const id of ids) {
-        await db.remove("transactions", id);
-      }
+      await db.bulkRemove("transactions", Array.from(selected));
       setSelected(new Set());
       router.refresh();
     } catch (err) {
@@ -561,7 +558,7 @@ export function TransactionsView({
                           : "text-red-600"
                       }
                     >
-                      {t.type === "income" ? "+" : t.type === "expense" ? "-" : "~"}
+                      {t.type === "income" ? "+" : t.type === "expense" ? "-" : ""}
                       {formatCurrency(t.amount)}
                     </span>
                   </TableCell>
