@@ -33,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Pencil } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 
 const CATEGORIES = [
   "rent",
@@ -203,6 +203,16 @@ export function TransactionsView({
 
   function cancelEdit() {
     setEditingId(null);
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("Delete this transaction?")) return;
+    try {
+      await db.remove("transactions", id);
+      router.refresh();
+    } catch (err) {
+      console.error("Failed to delete transaction:", err);
+    }
   }
 
   return (
@@ -467,15 +477,26 @@ export function TransactionsView({
                         </Button>
                       </div>
                     ) : (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 w-7 p-0"
-                        onClick={() => startEdit(t)}
-                        title="Edit category"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0"
+                          onClick={() => startEdit(t)}
+                          title="Edit"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-red-500 hover:text-red-700"
+                          onClick={() => handleDelete(t.id)}
+                          title="Delete"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     )}
                   </TableCell>
                 </TableRow>
