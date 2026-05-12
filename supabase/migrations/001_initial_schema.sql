@@ -33,6 +33,8 @@ CREATE TABLE properties (
   purchase_price NUMERIC(12, 2),
   purchase_date DATE,
   current_value NUMERIC(12, 2),
+  mortgage_balance NUMERIC(12, 2),
+  loan_balance NUMERIC(12, 2),
   monthly_rent NUMERIC(10, 2),
   notes TEXT,
   is_active BOOLEAN DEFAULT true,

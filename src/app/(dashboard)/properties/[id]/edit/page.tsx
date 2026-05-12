@@ -37,6 +37,8 @@ export default function EditPropertyPage() {
     purchase_price: "",
     purchase_date: "",
     current_value: "",
+    mortgage_balance: "",
+    loan_balance: "",
     monthly_rent: "",
     notes: "",
   });
@@ -60,6 +62,8 @@ export default function EditPropertyPage() {
           purchase_price: data.purchase_price != null ? String(data.purchase_price) : "",
           purchase_date: data.purchase_date || "",
           current_value: data.current_value != null ? String(data.current_value) : "",
+          mortgage_balance: data.mortgage_balance != null ? String(data.mortgage_balance) : "",
+          loan_balance: data.loan_balance != null ? String(data.loan_balance) : "",
           monthly_rent: data.monthly_rent != null ? String(data.monthly_rent) : "",
           notes: data.notes || "",
         });
@@ -97,6 +101,8 @@ export default function EditPropertyPage() {
         purchase_price: form.purchase_price ? Number(form.purchase_price) : null,
         purchase_date: form.purchase_date || null,
         current_value: form.current_value ? Number(form.current_value) : null,
+        mortgage_balance: form.mortgage_balance ? Number(form.mortgage_balance) : null,
+        loan_balance: form.loan_balance ? Number(form.loan_balance) : null,
         monthly_rent: form.monthly_rent ? Number(form.monthly_rent) : null,
         notes: form.notes || null,
       });
@@ -320,6 +326,32 @@ export default function EditPropertyPage() {
                   min={0}
                   placeholder="0.00"
                   value={form.monthly_rent}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="mortgage_balance">Mortgage Balance Owed</Label>
+                <Input
+                  id="mortgage_balance"
+                  name="mortgage_balance"
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  placeholder="0.00"
+                  value={form.mortgage_balance}
+                  onChange={handleChange}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="loan_balance">Loan Balance Owed</Label>
+                <Input
+                  id="loan_balance"
+                  name="loan_balance"
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  placeholder="0.00"
+                  value={form.loan_balance}
                   onChange={handleChange}
                 />
               </div>

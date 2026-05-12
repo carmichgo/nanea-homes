@@ -29,7 +29,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 
-type Period = "this_month" | "this_quarter" | "this_year" | "last_year" | "custom";
+type Period = "all_time" | "this_month" | "this_quarter" | "this_year" | "last_year" | "custom";
 
 function getPeriodRange(period: Period, customFrom?: string, customTo?: string) {
   const now = new Date();
@@ -58,6 +58,10 @@ function getPeriodRange(period: Period, customFrom?: string, customTo?: string) 
     case "custom":
       from = customFrom || `${now.getFullYear()}-01-01`;
       to = customTo || now.toISOString().split("T")[0];
+      break;
+    case "all_time":
+      from = "2000-01-01";
+      to = "2099-12-31";
       break;
   }
 
@@ -168,6 +172,7 @@ export function PortfolioFinancialsView({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all_time">All Time</SelectItem>
               <SelectItem value="this_month">This Month</SelectItem>
               <SelectItem value="this_quarter">This Quarter</SelectItem>
               <SelectItem value="this_year">This Year</SelectItem>

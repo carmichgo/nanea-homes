@@ -17,6 +17,8 @@ export interface Property {
   purchase_price?: number;
   purchase_date?: string;
   current_value?: number;
+  mortgage_balance?: number;
+  loan_balance?: number;
   monthly_rent?: number;
   notes?: string;
   is_active: boolean;

@@ -28,7 +28,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 
-type Period = "this_month" | "this_quarter" | "this_year" | "last_year" | "custom";
+type Period = "all_time" | "this_month" | "this_quarter" | "this_year" | "last_year" | "custom";
 
 function getPeriodRange(period: Period, customFrom?: string, customTo?: string) {
   const now = new Date();
@@ -57,6 +57,10 @@ function getPeriodRange(period: Period, customFrom?: string, customTo?: string) 
     case "custom":
       from = customFrom || `${now.getFullYear()}-01-01`;
       to = customTo || now.toISOString().split("T")[0];
+      break;
+    case "all_time":
+      from = "2000-01-01";
+      to = "2099-12-31";
       break;
   }
 
@@ -103,16 +107,11 @@ export function PropertyFinancialsView({
   const totalExpenses = expenseTransactions.reduce((s, t) => s + t.amount, 0);
   const noi = totalRevenue - totalExpenses;
 
-  // Balance sheet
-  const activeTransactions = transactions.filter((t) => t.status !== "failed");
+  // Balance sheet - use property-level balances owed to bank
   const propertyValue = property?.current_value ?? 0;
-  const totalMortgage = activeTransactions
-    .filter((t) => t.type === "expense" && t.category === "mortgage")
-    .reduce((s, t) => s + t.amount, 0);
-  const totalLoans = activeTransactions
-    .filter((t) => t.type === "expense" && t.category === "loan")
-    .reduce((s, t) => s + t.amount, 0);
-  const totalLiabilities = totalMortgage + totalLoans;
+  const mortgageBalance = property?.mortgage_balance ?? 0;
+  const loanBalance = property?.loan_balance ?? 0;
+  const totalLiabilities = mortgageBalance + loanBalance;
   const equity = propertyValue - totalLiabilities;
 
   return (
@@ -138,6 +137,7 @@ export function PropertyFinancialsView({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="all_time">All Time</SelectItem>
                   <SelectItem value="this_month">This Month</SelectItem>
                   <SelectItem value="this_quarter">This Quarter</SelectItem>
                   <SelectItem value="this_year">This Year</SelectItem>
@@ -311,15 +311,15 @@ export function PropertyFinancialsView({
                     </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell className="pl-8">Mortgage (cumulative)</TableCell>
+                    <TableCell className="pl-8">Mortgage Balance</TableCell>
                     <TableCell className="text-right">
-                      {formatCurrency(totalMortgage)}
+                      {formatCurrency(mortgageBalance)}
                     </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell className="pl-8">Loans (cumulative)</TableCell>
+                    <TableCell className="pl-8">Loan Balance</TableCell>
                     <TableCell className="text-right">
-                      {formatCurrency(totalLoans)}
+                      {formatCurrency(loanBalance)}
                     </TableCell>
                   </TableRow>
                   <TableRow className="font-semibold border-t">
