@@ -183,13 +183,7 @@ export function TransactionsView({
     const res = await fetch("/api/ai/categorize", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: t.id,
-        description: t.description || "",
-        merchant_name: t.merchant_name || "",
-        amount: t.amount,
-        direction: t.type === "income" ? "incoming" : "outgoing",
-      }),
+      body: JSON.stringify({ id: t.id }),
     });
     return res.json();
   }

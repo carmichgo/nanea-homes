@@ -12,7 +12,7 @@ const TYPES = ["income", "expense", "internal"];
 
 export async function POST(request: NextRequest) {
   try {
-    const { id, description, merchant_name, amount, direction } = await request.json();
+    const { id } = await request.json();
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
@@ -29,6 +29,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const adminClient = createAdminClient();
+
+    // Fetch the full transaction with all Plaid data
+    const { data: txn, error: txnError } = await adminClient
+      .from("transactions")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (txnError || !txn) {
+      return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
+    }
+
     const anthropic = new Anthropic({ apiKey });
 
     const message = await anthropic.messages.create({
@@ -37,25 +50,53 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: "user",
-          content: `Categorize this rental property bank transaction.
+          content: `You are an expert accountant categorizing bank transactions for a RENTAL PROPERTY business. This is a bank account used exclusively for a rental property.
 
-Transaction:
-- Description: "${description || ""}"
-- Merchant: "${merchant_name || ""}"
-- Amount: $${amount}
-- Direction: ${direction} (${direction === "outgoing" ? "money left the account" : "money came into the account"})
+Transaction details:
+- Description: "${txn.description || "N/A"}"
+- Merchant: "${txn.merchant_name || "N/A"}"
+- Amount: $${txn.amount}
+- Date: ${txn.date}
+- Current type: ${txn.type} (may be wrong)
+- Current category: ${txn.category || "uncategorized"} (may be wrong)
+- Plaid subcategory: ${txn.subcategory || "N/A"}
+- Status: ${txn.status}
 
-CATEGORIES: ${CATEGORIES.join(", ")}
-TYPES: income, expense, internal
+CONTEXT: This bank account is for a rental property. Common transactions include:
+- Tenant rent payments (incoming deposits, often recurring monthly, Zelle, ACH, or direct deposit)
+- Mortgage payments to the bank/lender
+- Loan payments
+- Insurance premiums (homeowner's, landlord, liability)
+- Utility payments (electric, water, gas, sewer, trash, internet)
+- Repair/maintenance costs (plumbers, electricians, handymen, contractors)
+- Property management fees
+- Property tax payments
+- Cleaning services
+- Legal fees
+- Supplies (hardware store, Home Depot, Lowes, Amazon)
+- Advertising costs (listing fees, marketing)
+- Transfers between owner's own accounts (NOT income or expense)
+- Returned/failed payments (NSF, chargebacks, reversals)
 
-Type rules:
-- "income" = money received (rent from tenants, refunds, deposits received)
-- "expense" = money spent (repairs, insurance, mortgage, utilities, fees)
-- "internal" = ONLY for transfers between the owner's own bank accounts, not real income or expense
+CATEGORIES (pick exactly one): ${CATEGORIES.join(", ")}
 
-You MUST use one of the exact category values listed above. Do not invent new categories.
-Respond with ONLY a JSON object, no markdown:
-{"category": "category_name", "type": "income|expense|internal"}`,
+TYPES (pick exactly one):
+- "income" = money RECEIVED into this account (tenant rent, refunds, security deposits received)
+- "expense" = money PAID OUT from this account (mortgage, repairs, insurance, utilities, any bill payment)
+- "internal" = ONLY money moving between the owner's own bank accounts (account transfers, NOT payments to/from others)
+
+IMPORTANT RULES:
+1. If description contains "RETURNED", "NSF", "REVERSAL", "FAILED", "DISHONORED" → type: "internal", category: "return_payment"
+2. Recurring monthly incoming deposits are likely tenant rent → type: "income", category: "rent"
+3. Payments to mortgage companies, loan servicers → type: "expense", category: "mortgage" or "loan"
+4. ACH debits to insurance companies → type: "expense", category: "insurance"
+5. Payments to utility companies → type: "expense", category: "utilities"
+6. Hardware stores, contractor payments → type: "expense", category: "repair" or "supplies"
+7. Transfers labeled "transfer", "xfer" between own accounts → type: "internal", category: "transfer"
+8. When in doubt about income vs expense: if money came IN, it's income; if money went OUT, it's expense
+
+Respond with ONLY a JSON object, no explanation, no markdown:
+{"category": "one_of_the_categories", "type": "income_or_expense_or_internal"}`,
         },
       ],
     });
@@ -76,8 +117,6 @@ Respond with ONLY a JSON object, no markdown:
       return NextResponse.json({ error: "Invalid AI response" }, { status: 500 });
     }
 
-    // Update the transaction
-    const adminClient = createAdminClient();
     await adminClient
       .from("transactions")
       .update({ category: result.category, type: result.type })
