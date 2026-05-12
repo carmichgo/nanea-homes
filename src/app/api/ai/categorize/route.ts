@@ -42,6 +42,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
     }
 
+    // Fetch recent manually-categorized transactions from the same property as examples
+    const { data: examples } = await adminClient
+      .from("transactions")
+      .select("description, merchant_name, amount, type, category, status")
+      .eq("property_id", txn.property_id)
+      .eq("is_manual", false)
+      .neq("id", id)
+      .not("category", "is", null)
+      .order("updated_at", { ascending: false })
+      .limit(30);
+
+    let examplesBlock = "";
+    if (examples && examples.length > 0) {
+      const seen = new Set<string>();
+      const unique = examples.filter((e) => {
+        const key = `${e.category}|${e.type}|${(e.description || "").substring(0, 30)}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }).slice(0, 20);
+
+      examplesBlock = `
+EXAMPLES FROM THIS PROPERTY (learn from these past categorizations by the owner):
+${unique.map((e) => `- "${e.description || "N/A"}" | Merchant: "${e.merchant_name || "N/A"}" | $${e.amount} | → type: "${e.type}", category: "${e.category}"`).join("\n")}
+
+Use these examples to understand how the owner categorizes similar transactions. Match similar descriptions/merchants to the same category and type.
+`;
+    }
+
     const anthropic = new Anthropic({ apiKey });
 
     const message = await anthropic.messages.create({
@@ -95,6 +124,7 @@ IMPORTANT RULES:
 7. Transfers labeled "transfer", "xfer" between own accounts → type: "internal", category: "transfer"
 8. When in doubt about income vs expense: if money came IN, it's income; if money went OUT, it's expense
 
+${examplesBlock}
 Respond with ONLY a JSON object, no explanation, no markdown:
 {"category": "one_of_the_categories", "type": "income_or_expense_or_internal"}`,
         },
