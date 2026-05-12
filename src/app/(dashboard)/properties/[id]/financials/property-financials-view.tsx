@@ -104,11 +104,16 @@ export function PropertyFinancialsView({
   const noi = totalRevenue - totalExpenses;
 
   // Balance sheet
+  const activeTransactions = transactions.filter((t) => t.status !== "failed");
   const propertyValue = property?.current_value ?? 0;
-  const totalMortgage = transactions
+  const totalMortgage = activeTransactions
     .filter((t) => t.type === "expense" && t.category === "mortgage")
     .reduce((s, t) => s + t.amount, 0);
-  const equity = propertyValue - totalMortgage;
+  const totalLoans = activeTransactions
+    .filter((t) => t.type === "expense" && t.category === "loan")
+    .reduce((s, t) => s + t.amount, 0);
+  const totalLiabilities = totalMortgage + totalLoans;
+  const equity = propertyValue - totalLiabilities;
 
   return (
     <div className="space-y-6">
@@ -306,15 +311,21 @@ export function PropertyFinancialsView({
                     </TableCell>
                   </TableRow>
                   <TableRow>
-                    <TableCell className="pl-8">Mortgage Payments (cumulative)</TableCell>
+                    <TableCell className="pl-8">Mortgage (cumulative)</TableCell>
                     <TableCell className="text-right">
                       {formatCurrency(totalMortgage)}
+                    </TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="pl-8">Loans (cumulative)</TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(totalLoans)}
                     </TableCell>
                   </TableRow>
                   <TableRow className="font-semibold border-t">
                     <TableCell className="pl-4">Total Liabilities</TableCell>
                     <TableCell className="text-right">
-                      {formatCurrency(totalMortgage)}
+                      {formatCurrency(totalLiabilities)}
                     </TableCell>
                   </TableRow>
 
