@@ -53,6 +53,20 @@ function mapPlaidStatus(txn: any): string {
   return 'posted';
 }
 
+function isOwnAccountTransfer(txn: any): boolean {
+  const desc = (txn.name || '').toUpperCase();
+  // Only these are real inter-account transfers
+  return (
+    desc.includes('TRANSFER BETWEEN YOUR') ||
+    desc.includes('TRANSFER TO SAVINGS') ||
+    desc.includes('TRANSFER FROM SAVINGS') ||
+    desc.includes('TRANSFER TO CHECKING') ||
+    desc.includes('TRANSFER FROM CHECKING') ||
+    desc.includes('INTERNAL TRANSFER') ||
+    (desc.includes('MERCURY CHECKING') && desc.includes('TRANSFER'))
+  );
+}
+
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
@@ -97,11 +111,10 @@ export async function POST(request: NextRequest) {
         const detailedCategory = txn.personal_finance_category?.detailed || '';
         const status = mapPlaidStatus(txn);
 
-        // Skip failed transactions from being counted as real expenses
         let type: string;
         if (status === 'failed') {
           type = 'internal';
-        } else if (primaryCategory.startsWith('TRANSFER') || primaryCategory === 'BANK_FEES') {
+        } else if (isOwnAccountTransfer(txn)) {
           type = 'internal';
         } else if (txn.amount > 0) {
           type = 'expense';
@@ -117,7 +130,7 @@ export async function POST(request: NextRequest) {
           type,
           status,
           amount: Math.abs(txn.amount),
-          category: status === 'failed' ? 'return_payment' : category,
+          category: status === 'failed' ? 'return_payment' : (isOwnAccountTransfer(txn) ? 'transfer' : category),
           subcategory: detailedCategory || null,
           description: txn.name,
           merchant_name: txn.merchant_name || null,
@@ -194,7 +207,7 @@ export async function POST(request: NextRequest) {
             let type: string;
             if (status === 'failed') {
               type = 'internal';
-            } else if (primaryCategory.startsWith('TRANSFER') || primaryCategory === 'BANK_FEES') {
+            } else if (isOwnAccountTransfer(txn)) {
               type = 'internal';
             } else if (txn.amount > 0) {
               type = 'expense';
@@ -210,7 +223,7 @@ export async function POST(request: NextRequest) {
               type,
               status,
               amount: Math.abs(txn.amount),
-              category: status === 'failed' ? 'return_payment' : category,
+              category: status === 'failed' ? 'return_payment' : (isOwnAccountTransfer(txn) ? 'transfer' : category),
               subcategory: detailedCategory || null,
               description: txn.name,
               merchant_name: txn.merchant_name || null,
