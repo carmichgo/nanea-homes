@@ -55,16 +55,7 @@ function mapPlaidStatus(txn: any): string {
 
 function isOwnAccountTransfer(txn: any): boolean {
   const desc = (txn.name || '').toUpperCase();
-  // Only these are real inter-account transfers
-  return (
-    desc.includes('TRANSFER BETWEEN YOUR') ||
-    desc.includes('TRANSFER TO SAVINGS') ||
-    desc.includes('TRANSFER FROM SAVINGS') ||
-    desc.includes('TRANSFER TO CHECKING') ||
-    desc.includes('TRANSFER FROM CHECKING') ||
-    desc.includes('INTERNAL TRANSFER') ||
-    (desc.includes('MERCURY CHECKING') && desc.includes('TRANSFER'))
-  );
+  return desc.includes('TRANSFER BETWEEN YOUR');
 }
 
 export const maxDuration = 60;
