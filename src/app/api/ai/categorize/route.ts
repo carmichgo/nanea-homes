@@ -42,33 +42,53 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
     }
 
-    // Fetch recent manually-categorized transactions from the same property as examples
+    // Fetch ALL categorized transactions from this property as examples
+    // This includes ones the user manually corrected via the edit button
     const { data: examples } = await adminClient
       .from("transactions")
       .select("description, merchant_name, amount, type, category, status")
       .eq("property_id", txn.property_id)
-      .eq("is_manual", false)
       .neq("id", id)
       .not("category", "is", null)
-      .order("updated_at", { ascending: false })
-      .limit(30);
+      .order("date", { ascending: false })
+      .limit(100);
 
     let examplesBlock = "";
     if (examples && examples.length > 0) {
-      const seen = new Set<string>();
-      const unique = examples.filter((e) => {
-        const key = `${e.category}|${e.type}|${(e.description || "").substring(0, 30)}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      }).slice(0, 20);
+      // Group by merchant/description pattern to find the MOST COMMON category for each
+      const patternMap = new Map<string, { type: string; category: string; count: number }[]>();
 
-      examplesBlock = `
-EXAMPLES FROM THIS PROPERTY (learn from these past categorizations by the owner):
-${unique.map((e) => `- "${e.description || "N/A"}" | Merchant: "${e.merchant_name || "N/A"}" | $${e.amount} | → type: "${e.type}", category: "${e.category}"`).join("\n")}
+      for (const e of examples) {
+        const desc = (e.description || "").toUpperCase().trim();
+        const merchant = (e.merchant_name || "").toUpperCase().trim();
+        const key = merchant || desc.substring(0, 40);
+        if (!key) continue;
 
-Use these examples to understand how the owner categorizes similar transactions. Match similar descriptions/merchants to the same category and type.
+        const existing = patternMap.get(key) || [];
+        const match = existing.find((x) => x.category === e.category && x.type === e.type);
+        if (match) {
+          match.count++;
+        } else {
+          existing.push({ type: e.type, category: e.category, count: 1 });
+        }
+        patternMap.set(key, existing);
+      }
+
+      // For each pattern, pick the most common categorization
+      const learned: string[] = [];
+      patternMap.forEach((cats, key) => {
+        const best = cats.sort((a, b) => b.count - a.count)[0];
+        learned.push(`- "${key}" → type: "${best.type}", category: "${best.category}" (seen ${best.count}x)`);
+      });
+
+      if (learned.length > 0) {
+        examplesBlock = `
+LEARNED PATTERNS FROM THIS PROPERTY (the owner has categorized these before - follow the same pattern):
+${learned.slice(0, 25).join("\n")}
+
+IMPORTANT: If the transaction description or merchant matches any pattern above, use the SAME category and type. The owner's past categorizations take priority over your guesses.
 `;
+      }
     }
 
     const anthropic = new Anthropic({ apiKey });

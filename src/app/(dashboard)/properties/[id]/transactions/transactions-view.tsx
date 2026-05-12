@@ -234,6 +234,7 @@ export function TransactionsView({
       await db.update("transactions", editingId, {
         category: editCategory,
         type: editType,
+        updated_at: new Date().toISOString(),
       });
       setEditingId(null);
       router.refresh();
