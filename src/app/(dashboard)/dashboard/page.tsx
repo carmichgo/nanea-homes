@@ -41,7 +41,9 @@ export default async function DashboardPage() {
     .gte("date", startOfMonth)
     .lte("date", endOfMonth);
 
-  const transactions = (monthTransactions as Transaction[]) ?? [];
+  const transactions = ((monthTransactions as Transaction[]) ?? []).filter(
+    (tx) => tx.status !== "failed"
+  );
 
   // Calculate totals
   const monthlyIncome = transactions

@@ -101,7 +101,7 @@ export function PortfolioFinancialsView({
   );
 
   const periodTransactions = useMemo(
-    () => transactions.filter((t) => t.date >= from && t.date <= to),
+    () => transactions.filter((t) => t.date >= from && t.date <= to && t.status !== "failed"),
     [transactions, from, to]
   );
 
