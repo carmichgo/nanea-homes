@@ -3,9 +3,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const CATEGORIES = [
-  "rent", "repair", "insurance", "mortgage", "utilities",
+  "rent", "repair", "insurance", "mortgage", "loan", "utilities",
   "management_fee", "tax", "supplies", "cleaning",
-  "advertising", "legal", "transfer", "other",
+  "advertising", "legal", "return_payment", "transfer", "other",
 ];
 
 const TYPES = ["income", "expense", "internal"];

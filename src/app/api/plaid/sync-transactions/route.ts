@@ -2,14 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { plaidClient } from '@/lib/plaid/client';
 
-function mapPlaidCategory(plaidCategory: string): string {
+function mapPlaidCategory(plaidCategory: string, detailed?: string): string {
+  if (detailed) {
+    const d = detailed.toUpperCase();
+    if (d.includes('RETURNED_PAYMENT') || d.includes('NSF') || d.includes('RETURN'))
+      return 'return_payment';
+    if (d.includes('LOAN') && !d.includes('MORTGAGE'))
+      return 'loan';
+  }
   const map: Record<string, string> = {
     'INCOME': 'rent',
     'RENT': 'rent',
     'TRANSFER_IN': 'transfer',
     'TRANSFER_OUT': 'transfer',
     'BANK_FEES': 'other',
-    'LOAN_PAYMENTS': 'mortgage',
+    'LOAN_PAYMENTS': 'loan',
     'FOOD_AND_DRINK': 'other',
     'GENERAL_MERCHANDISE': 'supplies',
     'HOME_IMPROVEMENT': 'repair',
@@ -25,6 +32,25 @@ function mapPlaidCategory(plaidCategory: string): string {
     'TAX': 'tax',
   };
   return map[plaidCategory] || 'other';
+}
+
+function mapPlaidStatus(txn: any): string {
+  if (txn.pending) return 'pending';
+  const code = txn.payment_meta?.payment_method
+    || txn.payment_channel
+    || '';
+  const name = (txn.name || '').toUpperCase();
+  if (
+    name.includes('RETURNED') ||
+    name.includes('RETURN ITEM') ||
+    name.includes('NSF') ||
+    name.includes('REVERSAL') ||
+    name.includes('FAILED') ||
+    name.includes('DISHONORED')
+  ) {
+    return 'failed';
+  }
+  return 'posted';
 }
 
 export const maxDuration = 60;
@@ -67,25 +93,32 @@ export async function POST(request: NextRequest) {
 
       // Process added and modified transactions
       const transactionsToUpsert = [...added, ...modified].map((txn) => {
-        // Determine transaction type
-        let type: string;
         const primaryCategory = txn.personal_finance_category?.primary || '';
-        if (primaryCategory.startsWith('TRANSFER') || primaryCategory === 'BANK_FEES') {
+        const detailedCategory = txn.personal_finance_category?.detailed || '';
+        const status = mapPlaidStatus(txn);
+
+        // Skip failed transactions from being counted as real expenses
+        let type: string;
+        if (status === 'failed') {
+          type = 'internal';
+        } else if (primaryCategory.startsWith('TRANSFER') || primaryCategory === 'BANK_FEES') {
           type = 'internal';
         } else if (txn.amount > 0) {
           type = 'expense';
         } else {
           type = 'income';
         }
+
+        const category = mapPlaidCategory(primaryCategory, detailedCategory);
+
         return {
           property_id,
           plaid_transaction_id: txn.transaction_id,
           type,
-          status: txn.pending ? 'pending' : 'posted',
+          status,
           amount: Math.abs(txn.amount),
-          category: mapPlaidCategory(txn.personal_finance_category?.primary || ''),
-          subcategory:
-            txn.personal_finance_category?.detailed || null,
+          category: status === 'failed' ? 'return_payment' : category,
+          subcategory: detailedCategory || null,
           description: txn.name,
           merchant_name: txn.merchant_name || null,
           date: txn.date,
@@ -154,25 +187,31 @@ export async function POST(request: NextRequest) {
 
         if (transactions.length > 0) {
           const transactionsToUpsert = transactions.map((txn) => {
-            // Determine transaction type
-            let type: string;
             const primaryCategory = txn.personal_finance_category?.primary || '';
-            if (primaryCategory.startsWith('TRANSFER') || primaryCategory === 'BANK_FEES') {
+            const detailedCategory = txn.personal_finance_category?.detailed || '';
+            const status = mapPlaidStatus(txn);
+
+            let type: string;
+            if (status === 'failed') {
+              type = 'internal';
+            } else if (primaryCategory.startsWith('TRANSFER') || primaryCategory === 'BANK_FEES') {
               type = 'internal';
             } else if (txn.amount > 0) {
               type = 'expense';
             } else {
               type = 'income';
             }
+
+            const category = mapPlaidCategory(primaryCategory, detailedCategory);
+
             return {
               property_id,
               plaid_transaction_id: txn.transaction_id,
               type,
-              status: txn.pending ? 'pending' : 'posted',
+              status,
               amount: Math.abs(txn.amount),
-              category: mapPlaidCategory(txn.personal_finance_category?.primary || ''),
-              subcategory:
-                txn.personal_finance_category?.detailed || null,
+              category: status === 'failed' ? 'return_payment' : category,
+              subcategory: detailedCategory || null,
               description: txn.name,
               merchant_name: txn.merchant_name || null,
               date: txn.date,

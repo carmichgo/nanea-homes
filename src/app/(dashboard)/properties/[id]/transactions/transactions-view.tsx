@@ -40,6 +40,7 @@ const CATEGORIES = [
   "repair",
   "insurance",
   "mortgage",
+  "loan",
   "utilities",
   "management_fee",
   "tax",
@@ -47,6 +48,7 @@ const CATEGORIES = [
   "cleaning",
   "advertising",
   "legal",
+  "return_payment",
   "transfer",
   "other",
 ] as const;
@@ -563,7 +565,14 @@ export function TransactionsView({
                     </span>
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="capitalize">
+                    <Badge
+                      variant="outline"
+                      className={`capitalize ${
+                        t.status === "failed"
+                          ? "border-red-300 bg-red-50 text-red-700"
+                          : ""
+                      }`}
+                    >
                       {t.status}
                     </Badge>
                   </TableCell>
