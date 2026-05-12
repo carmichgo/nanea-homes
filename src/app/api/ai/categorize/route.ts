@@ -44,66 +44,41 @@ export async function POST(request: NextRequest) {
     // STEP 1: Check if there's a direct match from past categorizations
     const { data: allTxns } = await adminClient
       .from("transactions")
-      .select("description, merchant_name, type, category")
+      .select("description, merchant_name, type, category, updated_at")
       .eq("property_id", txn.property_id)
       .neq("id", id)
-      .not("category", "is", null);
+      .not("category", "is", null)
+      .order("updated_at", { ascending: false });
+
+    const merchantCategory = new Map<string, string>();
 
     if (allTxns && allTxns.length > 0) {
-      // Build a map of merchant → most common category
-      const merchantCounts = new Map<string, Map<string, number>>();
 
       for (const t of allTxns) {
         const m = extractMerchant(t.description || "", t.merchant_name);
-        if (!merchantCounts.has(m)) merchantCounts.set(m, new Map());
-        const catMap = merchantCounts.get(m)!;
-        const key = `${t.category}`;
-        catMap.set(key, (catMap.get(key) || 0) + 1);
+        // First match wins since results are ordered by updated_at desc
+        if (!merchantCategory.has(m)) {
+          merchantCategory.set(m, t.category);
+        }
       }
 
       // Direct match - same merchant already categorized
-      const directMatch = merchantCounts.get(thisMerchant);
-      if (directMatch && directMatch.size > 0) {
-        let bestCat = "";
-        let bestCount = 0;
-        directMatch.forEach((count, cat) => {
-          if (count > bestCount) {
-            bestCat = cat;
-            bestCount = count;
-          }
-        });
+      const matchedCategory = merchantCategory.get(thisMerchant);
+      if (matchedCategory && CATEGORIES.includes(matchedCategory)) {
+        await adminClient
+          .from("transactions")
+          .update({ category: matchedCategory })
+          .eq("id", id);
 
-        if (bestCat && CATEGORIES.includes(bestCat)) {
-          // Use the existing categorization directly - no AI needed
-          await adminClient
-            .from("transactions")
-            .update({ category: bestCat })
-            .eq("id", id);
-
-          return NextResponse.json({ category: bestCat, type: txn.type, matched: thisMerchant });
-        }
+        return NextResponse.json({ category: matchedCategory, type: txn.type, matched: thisMerchant });
       }
     }
 
     // STEP 2: No direct match - use AI with learned patterns
     const learned: string[] = [];
     if (allTxns && allTxns.length > 0) {
-      const patternMap = new Map<string, { category: string; count: number }>();
-
-      for (const t of allTxns) {
-        const m = extractMerchant(t.description || "", t.merchant_name);
-        const existing = patternMap.get(m);
-        if (!existing || t.category !== existing.category) {
-          const key = m;
-          if (!patternMap.has(key) || (patternMap.get(key)?.count || 0) < 1) {
-            patternMap.set(key, { category: t.category, count: 1 });
-          } else {
-            patternMap.get(key)!.count++;
-          }
-        }
-      }
-
-      patternMap.forEach(({ category }, merchant) => {
+      // merchantCategory already has most recent category per merchant
+      merchantCategory.forEach((category, merchant) => {
         learned.push(`- "${merchant}" → category: "${category}"`);
       });
     }
