@@ -56,8 +56,9 @@ export async function POST(request: NextRequest) {
 
       for (const t of allTxns) {
         const m = extractMerchant(t.description || "", t.merchant_name);
-        // First match wins since results are ordered by updated_at desc
-        if (!merchantCategory.has(m)) {
+        const existing = merchantCategory.get(m);
+        // Always prefer a specific category over "other"
+        if (!existing || existing === "other") {
           merchantCategory.set(m, t.category);
         }
       }
