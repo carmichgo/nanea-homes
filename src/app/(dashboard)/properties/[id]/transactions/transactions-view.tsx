@@ -191,12 +191,15 @@ export function TransactionsView({
   async function handleAICategorize(t: Transaction) {
     setCategorizingId(t.id);
     try {
-      await categorizeOne(t);
-      router.refresh();
-    } catch {
-      // silent
+      const result = await categorizeOne(t);
+      if (result.error) {
+        alert(`Error: ${result.error}`);
+      }
+    } catch (err) {
+      alert(`Failed to categorize: ${err}`);
     } finally {
       setCategorizingId(null);
+      window.location.reload();
     }
   }
 
@@ -214,7 +217,7 @@ export function TransactionsView({
           // continue on error
         }
       }
-      router.refresh();
+      window.location.reload();
     } finally {
       setCategorizingId(null);
       setCategorizingAll(false);
