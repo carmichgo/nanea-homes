@@ -129,24 +129,20 @@ CONTEXT: This bank account is for a rental property. Common transactions include
 
 CATEGORIES (pick exactly one): ${CATEGORIES.join(", ")}
 
-TYPES (pick exactly one):
-- "income" = money RECEIVED into this account (tenant rent, refunds, security deposits received)
-- "expense" = money PAID OUT from this account (mortgage, repairs, insurance, utilities, any bill payment)
-- "internal" = ONLY money moving between the owner's own bank accounts (account transfers, NOT payments to/from others)
+TYPE RULES - CRITICAL:
+The current type is "${txn.type}". You can ONLY:
+- Keep it as "${txn.type}"
+- Change it to "internal" (if it's a transfer between own accounts or a failed/returned payment)
+You MUST NOT change "income" to "expense" or "expense" to "income". The bank determines the direction of money flow, not you. You only decide the category and whether it should be "internal".
 
 IMPORTANT RULES:
 1. If description contains "RETURNED", "NSF", "REVERSAL", "FAILED", "DISHONORED" → type: "internal", category: "return_payment"
-2. Recurring monthly incoming deposits are likely tenant rent → type: "income", category: "rent"
-3. Payments to mortgage companies, loan servicers → type: "expense", category: "mortgage" or "loan"
-4. ACH debits to insurance companies → type: "expense", category: "insurance"
-5. Payments to utility companies → type: "expense", category: "utilities"
-6. Hardware stores, contractor payments → type: "expense", category: "repair" or "supplies"
-7. Transfers labeled "transfer", "xfer" between own accounts → type: "internal", category: "transfer"
-8. When in doubt about income vs expense: if money came IN, it's income; if money went OUT, it's expense
+2. Transfers between own accounts → type: "internal", category: "transfer"
+3. For everything else, keep the type as "${txn.type}" and pick the best category
 
 ${examplesBlock}
 Respond with ONLY a JSON object, no explanation, no markdown:
-{"category": "one_of_the_categories", "type": "income_or_expense_or_internal"}`,
+{"category": "one_of_the_categories", "type": "${txn.type}_or_internal"}`,
         },
       ],
     });
@@ -163,18 +159,25 @@ Respond with ONLY a JSON object, no explanation, no markdown:
 
     const result = JSON.parse(jsonStr) as { category: string; type: string };
 
-    if (!CATEGORIES.includes(result.category) || !TYPES.includes(result.type)) {
+    if (!CATEGORIES.includes(result.category)) {
       return NextResponse.json({ error: "Invalid AI response" }, { status: 500 });
+    }
+
+    // ENFORCE: AI can only keep the original type or change to "internal"
+    // It must NEVER flip income↔expense - the bank determines money direction
+    let finalType = txn.type;
+    if (result.type === "internal") {
+      finalType = "internal";
     }
 
     await adminClient
       .from("transactions")
-      .update({ category: result.category, type: result.type })
+      .update({ category: result.category, type: finalType })
       .eq("id", id);
 
     return NextResponse.json({
       category: result.category,
-      type: result.type,
+      type: finalType,
     });
   } catch (error: any) {
     console.error("AI categorization error:", error);
